@@ -82,9 +82,9 @@ def split_inputs(from_node, txins, txouts, initial_split = False):
 
     # If this is the initial split we actually need to sign the transaction
     # Otherwise we just need to insert the proper ScriptSig
-    if (initial_split) :
-        completetx = from_node.signrawtransaction(ToHex(tx))["hex"]
-    else :
+    if (initial_split):
+        completetx = from_node.signrawtransactionwithwallet(ToHex(tx))["hex"]
+    else:
         tx.vin[0].scriptSig = SCRIPT_SIG[prevtxout["vout"]]
         completetx = ToHex(tx)
     txid = from_node.sendrawtransaction(completetx, True)
