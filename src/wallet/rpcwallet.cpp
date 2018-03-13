@@ -104,9 +104,9 @@ void WalletTxToJSON(const CWalletTx& wtx, UniValue& entry)
         entry.push_back(Pair("generated", true));
     if (confirms > 0)
     {
-        entry.push_back(Pair("blockhash", wtx.hashBlock.GetHex()));
-        entry.push_back(Pair("blockindex", wtx.nIndex));
-        entry.push_back(Pair("blocktime", mapBlockIndex[wtx.hashBlock]->GetBlockTime()));
+        entry.pushKV("blockhash", wtx.hashBlock.GetHex());
+        entry.pushKV("blockindex", wtx.nIndex);
+        entry.pushKV("blocktime", LookupBlockIndex(wtx.hashBlock)->GetBlockTime());
     } else {
         entry.push_back(Pair("trusted", wtx.IsTrusted()));
     }
@@ -1943,11 +1943,10 @@ UniValue listsinceblock(const JSONRPCRequest& request)
         uint256 blockId;
 
         blockId.SetHex(request.params[0].get_str());
-        BlockMap::iterator it = mapBlockIndex.find(blockId);
-        if (it == mapBlockIndex.end()) {
+        paltindex = pindex = LookupBlockIndex(blockId);
+        if (!pindex) {
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
         }
-        paltindex = pindex = it->second;
         if (chainActive[pindex->nHeight] != pindex) {
             // the block being asked for is a part of a deactivated chain;
             // we don't want to depend on its perceived height in the block

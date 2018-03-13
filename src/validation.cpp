@@ -284,12 +284,13 @@ namespace {
 
 CBlockIndex* FindForkInGlobalIndex(const CChain& chain, const CBlockLocator& locator)
 {
-    // Find the first block the caller has in the main chain
+    AssertLockHeld(cs_main);
+
+    // Find the latest block common to locator and chain - we expect that
+    // locator.vHave is sorted descending by height.
     for (const uint256& hash : locator.vHave) {
-        BlockMap::iterator mi = mapBlockIndex.find(hash);
-        if (mi != mapBlockIndex.end())
-        {
-            CBlockIndex* pindex = (*mi).second;
+        CBlockIndex* pindex = LookupBlockIndex(hash);
+        if (pindex) {
             if (chain.Contains(pindex))
                 return pindex;
         }
@@ -1408,7 +1409,7 @@ bool CScriptCheck::operator()() {
 int GetSpendHeight(const CCoinsViewCache& inputs)
 {
     LOCK(cs_main);
-    CBlockIndex* pindexPrev = mapBlockIndex.find(inputs.GetBestBlock())->second;
+    CBlockIndex* pindexPrev = LookupBlockIndex(inputs.GetBestBlock());
     return pindexPrev->nHeight + 1;
 }
 
@@ -3264,6 +3265,8 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 
 CBlockIndex* CChainState::AddToBlockIndex(const CBlockHeader& block, enum BlockStatus nStatus)
 {
+    AssertLockHeld(cs_main);
+
     // Check for duplicate
     uint256 hash = block.GetHash();
     BlockMap::iterator it = mapBlockIndex.find(hash);
@@ -3659,7 +3662,6 @@ bool CChainState::AcceptBlockHeader(const CBlockHeader& block, CValidationState&
 
     // TODO : ENABLE BLOCK CACHE IN SPECIFIC CASES
     if (hash != chainparams.GetConsensus().hashGenesisBlock) {
-
         if (miSelf != mapBlockIndex.end()) {
             // Block header is already known.
             pindex = miSelf->second;
@@ -4125,6 +4127,8 @@ fs::path GetBlockPosFilename(const CDiskBlockPos &pos, const char *prefix)
 
 CBlockIndex * CChainState::InsertBlockIndex(const uint256& hash)
 {
+    AssertLockHeld(cs_main);
+
     if (hash.IsNull())
         return nullptr;
 
@@ -4269,6 +4273,8 @@ bool static LoadBlockIndexDB(const CChainParams& chainparams)
 
 bool LoadChainTip(const CChainParams& chainparams)
 {
+    AssertLockHeld(cs_main);
+
     if (chainActive.Tip() && chainActive.Tip()->GetBlockHash() == pcoinsTip->GetBestBlock()) return true;
 
     if (pcoinsTip->GetBestBlock().IsNull() && mapBlockIndex.size() == 1) {
@@ -4282,10 +4288,11 @@ bool LoadChainTip(const CChainParams& chainparams)
     }
 
     // Load pointer to end of best chain
-    BlockMap::iterator it = mapBlockIndex.find(pcoinsTip->GetBestBlock());
-    if (it == mapBlockIndex.end())
+    CBlockIndex* pindex = LookupBlockIndex(pcoinsTip->GetBestBlock());
+    if (!pindex) {
         return false;
-    chainActive.SetTip(it->second);
+    }
+    chainActive.SetTip(pindex);
 
     g_chainstate.PruneBlockIndexCandidates();
 
@@ -4676,26 +4683,31 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 blkdat >> block;
                 nRewind = blkdat.GetPos();
 
-                // detect out of order blocks, and store them for later
                 uint256 hash = block.GetHash();
-                if (hash != chainparams.GetConsensus().hashGenesisBlock && mapBlockIndex.find(block.hashPrevBlock) == mapBlockIndex.end()) {
-                    LogPrint(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
-                            block.hashPrevBlock.ToString());
-                    if (dbp)
-                        mapBlocksUnknownParent.insert(std::make_pair(block.hashPrevBlock, *dbp));
-                    continue;
-                }
-
-                // process in case the block isn't known yet
-                if (mapBlockIndex.count(hash) == 0 || (mapBlockIndex[hash]->nStatus & BLOCK_HAVE_DATA) == 0) {
+                {
                     LOCK(cs_main);
-                    CValidationState state;
-                    if (g_chainstate.AcceptBlock(pblock, state, chainparams, nullptr, true, dbp, nullptr))
-                        nLoaded++;
-                    if (state.IsError())
-                        break;
-                } else if (hash != chainparams.GetConsensus().hashGenesisBlock && mapBlockIndex[hash]->nHeight % 1000 == 0) {
-                    LogPrint(BCLog::REINDEX, "Block Import: already had block %s at height %d\n", hash.ToString(), mapBlockIndex[hash]->nHeight);
+                    // detect out of order blocks, and store them for later
+                    if (hash != chainparams.GetConsensus().hashGenesisBlock && !LookupBlockIndex(block.hashPrevBlock)) {
+                        LogPrint(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
+                                block.hashPrevBlock.ToString());
+                        if (dbp)
+                            mapBlocksUnknownParent.insert(std::make_pair(block.hashPrevBlock, *dbp));
+                        continue;
+                    }
+
+                    // process in case the block isn't known yet
+                    CBlockIndex* pindex = LookupBlockIndex(hash);
+                    if (!pindex || (pindex->nStatus & BLOCK_HAVE_DATA) == 0) {
+                      CValidationState state;
+                      if (g_chainstate.AcceptBlock(pblock, state, chainparams, nullptr, true, dbp, nullptr)) {
+                          nLoaded++;
+                      }
+                      if (state.IsError()) {
+                          break;
+                      }
+                    } else if (hash != chainparams.GetConsensus().hashGenesisBlock && pindex->nHeight % 1000 == 0) {
+                      LogPrint(BCLog::REINDEX, "Block Import: already had block %s at height %d\n", hash.ToString(), pindex->nHeight);
+                    }
                 }
 
                 // Activate the genesis block so normal node progress can continue
