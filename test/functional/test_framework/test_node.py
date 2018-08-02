@@ -13,6 +13,7 @@ import os
 import re
 import subprocess
 import time
+import urllib.parse
 
 from .authproxy import JSONRPCException
 from .messages import MY_SUBVERSION
@@ -152,9 +153,8 @@ class TestNode():
         if self.use_cli:
             return self.cli("-rpcwallet={}".format(wallet_name))
         else:
-            assert self.rpc_connected
-            assert self.rpc
-            wallet_path = "wallet/%s" % wallet_name
+            assert self.rpc_connected and self.rpc, self._node_msg("RPC not connected")
+            wallet_path = "wallet/{}".format(urllib.parse.quote(wallet_name))
             return self.rpc / wallet_path
 
     def stop_node(self, wait=0):
