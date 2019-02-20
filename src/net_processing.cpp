@@ -4370,7 +4370,7 @@ bool PeerLogicValidation::SendMessages(CNode* pto, std::atomic<bool>& interruptM
         }
 
         //
-        // Message: getdata (non-blocks)
+        // Message: getdata (transactions)
         //
 
         // For robustness, expire old requests after a long timeout, so that
