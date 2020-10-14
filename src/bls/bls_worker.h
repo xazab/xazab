@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2020 The Dash Core developers
+// Copyright (c) 2018-2020 The Xazab Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef DASH_CRYPTO_BLS_WORKER_H
-#define DASH_CRYPTO_BLS_WORKER_H
+#ifndef XAZAB_CRYPTO_BLS_WORKER_H
+#define XAZAB_CRYPTO_BLS_WORKER_H
 
 #include <bls/bls.h>
 
@@ -202,4 +202,4 @@ private:
     }
 };
 
-#endif //DASH_CRYPTO_BLS_WORKER_H
+#endif //XAZAB_CRYPTO_BLS_WORKER_H

@@ -1,10 +1,10 @@
 // Copyright (c) 2011-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2014-2019 The Xazab Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #if defined(HAVE_CONFIG_H)
-#include <config/dash-config.h>
+#include <config/xazab-config.h>
 #endif
 
 #include <fs.h>
@@ -128,7 +128,7 @@ Intro::Intro(QWidget *parent) :
         .arg(tr(PACKAGE_NAME))
         .arg(BLOCK_CHAIN_SIZE)
         .arg(2014)
-        .arg("Dash")
+        .arg("Xazab")
     );
     ui->lblExplanation2->setText(ui->lblExplanation2->text().arg(tr(PACKAGE_NAME)));
 
@@ -147,7 +147,7 @@ Intro::Intro(QWidget *parent) :
     }
     requiredSpace += CHAIN_STATE_SIZE;
     ui->sizeWarningLabel->setText(
-        tr("%1 will download and store a copy of the Dash block chain.").arg(tr(PACKAGE_NAME)) + " " +
+        tr("%1 will download and store a copy of the Xazab block chain.").arg(tr(PACKAGE_NAME)) + " " +
         storageRequiresMsg.arg(requiredSpace) + " " +
         tr("The wallet will also be stored in this directory.")
     );
@@ -235,8 +235,8 @@ bool Intro::pickDataDirectory()
         settings.setValue("strDataDirDefault", dataDirDefaultCurrent);
     }
     /* Only override -datadir if different from the default, to make it possible to
-     * override -datadir in the dash.conf file in the default data directory
-     * (to be consistent with dashd behavior)
+     * override -datadir in the xazab.conf file in the default data directory
+     * (to be consistent with xazabd behavior)
      */
     if(dataDir != dataDirDefaultCurrent)
         gArgs.SoftSetArg("-datadir", GUIUtil::qstringToBoostPath(dataDir).string()); // use OS locale for path setting

@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2014-2019 The Xazab Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -287,7 +287,7 @@ UniValue importaddress(const JSONRPCRequest& request)
             std::vector<unsigned char> data(ParseHex(request.params[0].get_str()));
             ImportScript(pwallet, CScript(data.begin(), data.end()), strLabel, fP2SH);
         } else {
-            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Dash address or script");
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Xazab address or script");
         }
     }
     if (fRescan)
@@ -741,7 +741,7 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
             "\nReveals the private key corresponding to 'address'.\n"
             "Then the importprivkey can be used with this output\n"
             "\nArguments:\n"
-            "1. \"address\"   (string, required) The dash address for the private key\n"
+            "1. \"address\"   (string, required) The xazab address for the private key\n"
             "\nResult:\n"
             "\"key\"                (string) The private key\n"
             "\nExamples:\n"
@@ -757,7 +757,7 @@ UniValue dumpprivkey(const JSONRPCRequest& request)
     std::string strAddress = request.params[0].get_str();
     CTxDestination dest = DecodeDestination(strAddress);
     if (!IsValidDestination(dest)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Dash address");
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid Xazab address");
     }
     const CKeyID *keyID = boost::get<CKeyID>(&dest);
     if (!keyID) {
@@ -874,14 +874,14 @@ UniValue dumpwallet(const JSONRPCRequest& request)
     std::sort(vKeyBirth.begin(), vKeyBirth.end());
 
     // produce output
-    file << strprintf("# Wallet dump created by Dash Core %s\n", CLIENT_BUILD);
+    file << strprintf("# Wallet dump created by Xazab Core %s\n", CLIENT_BUILD);
     file << strprintf("# * Created on %s\n", EncodeDumpTime(GetTime()));
     file << strprintf("# * Best block at time of backup was %i (%s),\n", chainActive.Height(), chainActive.Tip()->GetBlockHash().ToString());
     file << strprintf("#   mined on %s\n", EncodeDumpTime(chainActive.Tip()->GetBlockTime()));
     file << "\n";
 
     UniValue obj(UniValue::VOBJ);
-    obj.push_back(Pair("dashcoreversion", CLIENT_BUILD));
+    obj.push_back(Pair("xazabcoreversion", CLIENT_BUILD));
     obj.push_back(Pair("lastblockheight", chainActive.Height()));
     obj.push_back(Pair("lastblockhash", chainActive.Tip()->GetBlockHash().ToString()));
     obj.push_back(Pair("lastblocktime", EncodeDumpTime(chainActive.Tip()->GetBlockTime())));
@@ -1440,7 +1440,7 @@ UniValue importmulti(const JSONRPCRequest& mainRequest)
                                       "block from time %d, which is after or within %d seconds of key creation, and "
                                       "could contain transactions pertaining to the key. As a result, transactions "
                                       "and coins using this key may not appear in the wallet. This error could be "
-                                      "caused by pruning or data corruption (see dashd log for details) and could "
+                                      "caused by pruning or data corruption (see xazabd log for details) and could "
                                       "be dealt with by downloading and rescanning the relevant blocks (see -reindex "
                                       "and -rescan options).",
                                 GetImportTimestamp(request, now), scannedTime - TIMESTAMP_WINDOW - 1, TIMESTAMP_WINDOW)));

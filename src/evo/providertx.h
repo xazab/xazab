@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2020 The Dash Core developers
+// Copyright (c) 2018-2020 The Xazab Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef DASH_PROVIDERTX_H
-#define DASH_PROVIDERTX_H
+#ifndef XAZAB_PROVIDERTX_H
+#define XAZAB_PROVIDERTX_H
 
 #include <bls/bls.h>
 #include <consensus/validation.h>
@@ -240,4 +240,4 @@ bool CheckProUpServTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CVa
 bool CheckProUpRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 bool CheckProUpRevTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state);
 
-#endif //DASH_PROVIDERTX_H
+#endif //XAZAB_PROVIDERTX_H

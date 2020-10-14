@@ -54,12 +54,12 @@ TEST_EXIT_SKIPPED = 77
 BASE_SCRIPTS= [
     # Scripts that are run by the travis build process.
     # Longest test should go first, to favor running tests in parallel
-    'dip3-deterministicmns.py', # NOTE: needs dash_hash to pass
+    'dip3-deterministicmns.py', # NOTE: needs xazab_hash to pass
     'feature_block_reward_reallocation.py',
     'wallet-hd.py',
     'walletbackup.py',
     # vv Tests less than 5m vv
-    'p2p-fullblocktest.py', # NOTE: needs dash_hash to pass
+    'p2p-fullblocktest.py', # NOTE: needs xazab_hash to pass
     'fundrawtransaction.py',
     'fundrawtransaction-hd.py',
     # vv Tests less than 2m vv
@@ -69,17 +69,17 @@ BASE_SCRIPTS= [
     'wallet-dump.py',
     'listtransactions.py',
     'multikeysporks.py',
-    'llmq-signing.py', # NOTE: needs dash_hash to pass
-    'llmq-signing.py --spork21', # NOTE: needs dash_hash to pass
-    'llmq-chainlocks.py', # NOTE: needs dash_hash to pass
-    'llmq-connections.py', # NOTE: needs dash_hash to pass
-    'llmq-simplepose.py', # NOTE: needs dash_hash to pass
-    'llmq-is-cl-conflicts.py', # NOTE: needs dash_hash to pass
-    'llmq-is-retroactive.py', # NOTE: needs dash_hash to pass
-    'llmq-dkgerrors.py', # NOTE: needs dash_hash to pass
-    'dip4-coinbasemerkleroots.py', # NOTE: needs dash_hash to pass
+    'llmq-signing.py', # NOTE: needs xazab_hash to pass
+    'llmq-signing.py --spork21', # NOTE: needs xazab_hash to pass
+    'llmq-chainlocks.py', # NOTE: needs xazab_hash to pass
+    'llmq-connections.py', # NOTE: needs xazab_hash to pass
+    'llmq-simplepose.py', # NOTE: needs xazab_hash to pass
+    'llmq-is-cl-conflicts.py', # NOTE: needs xazab_hash to pass
+    'llmq-is-retroactive.py', # NOTE: needs xazab_hash to pass
+    'llmq-dkgerrors.py', # NOTE: needs xazab_hash to pass
+    'dip4-coinbasemerkleroots.py', # NOTE: needs xazab_hash to pass
     # vv Tests less than 60s vv
-    'sendheaders.py', # NOTE: needs dash_hash to pass
+    'sendheaders.py', # NOTE: needs xazab_hash to pass
     'zapwallettxes.py',
     'importmulti.py',
     'mempool_limit.py',
@@ -120,8 +120,8 @@ BASE_SCRIPTS= [
     'keypool-hd.py',
     'p2p-mempool.py',
     'prioritise_transaction.py',
-    'invalidblockrequest.py', # NOTE: needs dash_hash to pass
-    'invalidtxrequest.py', # NOTE: needs dash_hash to pass
+    'invalidblockrequest.py', # NOTE: needs xazab_hash to pass
+    'invalidtxrequest.py', # NOTE: needs xazab_hash to pass
     'p2p-versionbits-warning.py',
     'preciousblock.py',
     'importprunedfunds.py',
@@ -142,7 +142,7 @@ BASE_SCRIPTS= [
     'uptime.py',
     'resendwallettransactions.py',
     'minchainwork.py',
-    'p2p-acceptblock.py', # NOTE: needs dash_hash to pass
+    'p2p-acceptblock.py', # NOTE: needs xazab_hash to pass
     'feature_shutdown.py',
     'privatesend.py',
     'uacomment.py',
@@ -211,7 +211,7 @@ def main():
     parser.add_argument('--failfast', action='store_true', help='stop execution after the first test failure')
     args, unknown_args = parser.parse_known_args()
 
-    # args to be passed on always start with two dashes; tests are the remaining unknown args
+    # args to be passed on always start with two xazabes; tests are the remaining unknown args
     tests = [arg for arg in unknown_args if arg[:2] != "--"]
     passon_args = [arg for arg in unknown_args if arg[:2] == "--"]
 
@@ -227,7 +227,7 @@ def main():
     logging.basicConfig(format='%(message)s', level=logging_level)
 
     # Create base test directory
-    tmpdir = "%s/dash_test_runner_%s" % (args.tmpdirprefix, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+    tmpdir = "%s/xazab_test_runner_%s" % (args.tmpdirprefix, datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
     os.makedirs(tmpdir)
 
     logging.debug("Temporary test directory at %s" % tmpdir)
@@ -243,7 +243,7 @@ def main():
         sys.exit(0)
 
     if not (enable_wallet and enable_utils and enable_bitcoind):
-        print("No functional tests to run. Wallet, utils, and dashd must all be enabled")
+        print("No functional tests to run. Wallet, utils, and xazabd must all be enabled")
         print("Rerun `configure` with -enable-wallet, -with-utils and -with-daemon and rerun make")
         sys.exit(0)
 
@@ -308,11 +308,11 @@ def main():
 def run_tests(*, test_list, src_dir, build_dir, exeext, tmpdir, jobs=1, enable_coverage=False, args=None, failfast=False, runs_ci):
     args = args or []
 
-    # Warn if dashd is already running (unix only)
+    # Warn if xazabd is already running (unix only)
     try:
-        pidof_output = subprocess.check_output(["pidof", "dashd"])
+        pidof_output = subprocess.check_output(["pidof", "xazabd"])
         if not (pidof_output is None or pidof_output == b''):
-            print("%sWARNING!%s There is already a dashd process running on this system. Tests may fail unexpectedly due to resource contention!" % (BOLD[1], BOLD[0]))
+            print("%sWARNING!%s There is already a xazabd process running on this system. Tests may fail unexpectedly due to resource contention!" % (BOLD[1], BOLD[0]))
     except (OSError, subprocess.SubprocessError):
         pass
 
@@ -324,8 +324,8 @@ def run_tests(*, test_list, src_dir, build_dir, exeext, tmpdir, jobs=1, enable_c
 
     #Set env vars
     if "BITCOIND" not in os.environ:
-        os.environ["BITCOIND"] = build_dir + '/src/dashd' + exeext
-        os.environ["BITCOINCLI"] = build_dir + '/src/dash-cli' + exeext
+        os.environ["BITCOIND"] = build_dir + '/src/xazabd' + exeext
+        os.environ["BITCOINCLI"] = build_dir + '/src/xazab-cli' + exeext
 
     tests_dir = src_dir + '/test/functional/'
 
@@ -430,7 +430,7 @@ class TestHandler:
         self.test_list = test_list
         self.flags = flags
         self.num_running = 0
-        # In case there is a graveyard of zombie dashds, we can apply a
+        # In case there is a graveyard of zombie xazabds, we can apply a
         # pseudorandom offset to hopefully jump over them.
         # (625 is PORT_RANGE/MAX_NODES)
         self.portseed_offset = int(time.time() * 1000) % 625
@@ -539,7 +539,7 @@ class RPCCoverage():
     Coverage calculation works by having each test script subprocess write
     coverage files into a particular directory. These files contain the RPC
     commands invoked during testing, as well as a complete listing of RPC
-    commands per `dash-cli help` (`rpc_interface.txt`).
+    commands per `xazab-cli help` (`rpc_interface.txt`).
 
     After all tests complete, the commands run are combined and diff'd against
     the complete list to calculate uncovered RPC commands.

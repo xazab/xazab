@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2014-2019 The Xazab Core developers
 
 #include <governance/governance-validators.h>
 #include <utilstrencodings.h>
@@ -6,7 +6,7 @@
 #include <test/data/proposals_valid.json.h>
 #include <test/data/proposals_invalid.json.h>
 
-#include <test/test_dash.h>
+#include <test/test_xazab.h>
 
 #include <iostream>
 #include <fstream>

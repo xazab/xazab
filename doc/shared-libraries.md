@@ -1,21 +1,21 @@
 Shared Libraries
 ================
 
-## dashconsensus
+## xazabconsensus
 
-The purpose of this library is to make the verification functionality that is critical to Dash's consensus available to other applications, e.g. to language bindings.
+The purpose of this library is to make the verification functionality that is critical to Xazab's consensus available to other applications, e.g. to language bindings.
 
 ### API
 
-The interface is defined in the C header `dashconsensus.h` located in  `src/script/dashconsensus.h`.
+The interface is defined in the C header `xazabconsensus.h` located in  `src/script/xazabconsensus.h`.
 
 #### Version
 
-`dashconsensus_version` returns an `unsigned int` with the API version *(currently at an experimental `0`)*.
+`xazabconsensus_version` returns an `unsigned int` with the API version *(currently at an experimental `0`)*.
 
 #### Script Validation
 
-`dashconsensus_verify_script` returns an `int` with the status of the verification. It will be `1` if the input script correctly spends the previous output `scriptPubKey`.
+`xazabconsensus_verify_script` returns an `int` with the status of the verification. It will be `1` if the input script correctly spends the previous output `scriptPubKey`.
 
 ##### Parameters
 - `const unsigned char *scriptPubKey` - The previous output script that encumbers spending.
@@ -24,21 +24,21 @@ The interface is defined in the C header `dashconsensus.h` located in  `src/scri
 - `unsigned int txToLen` - The number of bytes for the `txTo`.
 - `unsigned int nIn` - The index of the input in `txTo` that spends the `scriptPubKey`.
 - `unsigned int flags` - The script validation flags *(see below)*.
-- `dashconsensus_error* err` - Will have the error/success code for the operation *(see below)*.
+- `xazabconsensus_error* err` - Will have the error/success code for the operation *(see below)*.
 
 ##### Script Flags
-- `dashconsensus_SCRIPT_FLAGS_VERIFY_NONE`
-- `dashconsensus_SCRIPT_FLAGS_VERIFY_P2SH` - Evaluate P2SH ([BIP16](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki)) subscripts
-- `dashconsensus_SCRIPT_FLAGS_VERIFY_DERSIG` - Enforce strict DER ([BIP66](https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki)) compliance
-- `dashconsensus_SCRIPT_FLAGS_VERIFY_NULLDUMMY` - Enforce NULLDUMMY ([BIP147](https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki))
-- `dashconsensus_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY` - Enable CHECKLOCKTIMEVERIFY ([BIP65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki))
-- `dashconsensus_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY` - Enable CHECKSEQUENCEVERIFY ([BIP112](https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki))
+- `xazabconsensus_SCRIPT_FLAGS_VERIFY_NONE`
+- `xazabconsensus_SCRIPT_FLAGS_VERIFY_P2SH` - Evaluate P2SH ([BIP16](https://github.com/bitcoin/bips/blob/master/bip-0016.mediawiki)) subscripts
+- `xazabconsensus_SCRIPT_FLAGS_VERIFY_DERSIG` - Enforce strict DER ([BIP66](https://github.com/bitcoin/bips/blob/master/bip-0066.mediawiki)) compliance
+- `xazabconsensus_SCRIPT_FLAGS_VERIFY_NULLDUMMY` - Enforce NULLDUMMY ([BIP147](https://github.com/bitcoin/bips/blob/master/bip-0147.mediawiki))
+- `xazabconsensus_SCRIPT_FLAGS_VERIFY_CHECKLOCKTIMEVERIFY` - Enable CHECKLOCKTIMEVERIFY ([BIP65](https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki))
+- `xazabconsensus_SCRIPT_FLAGS_VERIFY_CHECKSEQUENCEVERIFY` - Enable CHECKSEQUENCEVERIFY ([BIP112](https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki))
 
 ##### Errors
-- `dashconsensus_ERR_OK` - No errors with input parameters *(see the return value of `dashconsensus_verify_script` for the verification status)*
-- `dashconsensus_ERR_TX_INDEX` - An invalid index for `txTo`
-- `dashconsensus_ERR_TX_SIZE_MISMATCH` - `txToLen` did not match with the size of `txTo`
-- `dashconsensus_ERR_DESERIALIZE` - An error deserializing `txTo`
+- `xazabconsensus_ERR_OK` - No errors with input parameters *(see the return value of `xazabconsensus_verify_script` for the verification status)*
+- `xazabconsensus_ERR_TX_INDEX` - An invalid index for `txTo`
+- `xazabconsensus_ERR_TX_SIZE_MISMATCH` - `txToLen` did not match with the size of `txTo`
+- `xazabconsensus_ERR_DESERIALIZE` - An error deserializing `txTo`
 
 ### Example Implementations
 - [NBitcoin](https://github.com/NicolasDorier/NBitcoin/blob/master/NBitcoin/Script.cs#L814) (.NET Bindings)

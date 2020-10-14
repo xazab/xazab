@@ -2,7 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <test/test_dash.h>
+#include <test/test_xazab.h>
 
 #include <chainparams.h>
 #include <consensus/consensus.h>
@@ -84,7 +84,7 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         // instead of unit tests, but for now we need these here.
         RegisterAllCoreRPCCommands(tableRPC);
         ClearDatadirCache();
-        pathTemp = fs::temp_directory_path() / strprintf("test_dash_%lu_%i", (unsigned long)GetTime(), (int)(InsecureRandRange(100000)));
+        pathTemp = fs::temp_directory_path() / strprintf("test_xazab_%lu_%i", (unsigned long)GetTime(), (int)(InsecureRandRange(100000)));
         fs::create_directories(pathTemp);
         gArgs.ForceSetArg("-datadir", pathTemp.string());
 

@@ -1,6 +1,6 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2015 The Bitcoin Core developers
-// Copyright (c) 2014-2019 The Dash Core developers
+// Copyright (c) 2014-2019 The Xazab Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -89,7 +89,7 @@
 // Application startup time (used for uptime calculation)
 const int64_t nStartupTime = GetTime();
 
-//Dash only features
+//Xazab only features
 bool fMasternodeMode = false;
 bool fDisableGovernance = false;
 /**
@@ -101,8 +101,8 @@ bool fDisableGovernance = false;
 */
 int nWalletBackups = 10;
 
-const char * const BITCOIN_CONF_FILENAME = "dash.conf";
-const char * const BITCOIN_PID_FILENAME = "dashd.pid";
+const char * const BITCOIN_CONF_FILENAME = "xazab.conf";
+const char * const BITCOIN_PID_FILENAME = "xazabd.pid";
 const char * const DEFAULT_DEBUGLOGFILE = "debug.log";
 
 ArgsManager gArgs;
@@ -271,7 +271,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::ALL, "1"},
     {BCLog::ALL, "all"},
 
-    //Start Dash
+    //Start Xazab
     {BCLog::CHAINLOCKS, "chainlocks"},
     {BCLog::GOBJECT, "gobject"},
     {BCLog::INSTANTSEND, "instantsend"},
@@ -284,7 +284,7 @@ const CLogCategoryDesc LogCategories[] =
     {BCLog::PRIVATESEND, "privatesend"},
     {BCLog::SPORK, "spork"},
     {BCLog::NETCONN, "netconn"},
-    //End Dash
+    //End Xazab
 
 };
 
@@ -295,7 +295,7 @@ bool GetLogCategory(uint64_t *f, const std::string *str)
             *f = BCLog::ALL;
             return true;
         }
-        if (*str == "dash") {
+        if (*str == "xazab") {
             *f = BCLog::CHAINLOCKS
                 | BCLog::GOBJECT
                 | BCLog::INSTANTSEND
@@ -589,7 +589,7 @@ public:
         std::pair<bool,std::string> found_result(false, std::string());
 
         // We pass "true" to GetArgHelper in order to return the last
-        // argument value seen from the command line (so "dashd -foo=bar
+        // argument value seen from the command line (so "xazabd -foo=bar
         // -foo=baz" gives GetArg(am,"foo")=={true,"baz"}
         found_result = GetArgHelper(am.m_override_args, arg, true);
         if (found_result.first) {
@@ -897,13 +897,13 @@ void PrintExceptionContinue(const std::exception_ptr pex, const char* pszExcepti
 
 fs::path GetDefaultDataDir()
 {
-    // Windows < Vista: C:\Documents and Settings\Username\Application Data\DashCore
-    // Windows >= Vista: C:\Users\Username\AppData\Roaming\DashCore
-    // Mac: ~/Library/Application Support/DashCore
-    // Unix: ~/.dashcore
+    // Windows < Vista: C:\Documents and Settings\Username\Application Data\XazabCore
+    // Windows >= Vista: C:\Users\Username\AppData\Roaming\XazabCore
+    // Mac: ~/Library/Application Support/XazabCore
+    // Unix: ~/.xazabcore
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "DashCore";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "XazabCore";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -913,10 +913,10 @@ fs::path GetDefaultDataDir()
         pathRet = fs::path(pszHome);
 #ifdef MAC_OSX
     // Mac
-    return pathRet / "Library/Application Support/DashCore";
+    return pathRet / "Library/Application Support/XazabCore";
 #else
     // Unix
-    return pathRet / ".dashcore";
+    return pathRet / ".xazabcore";
 #endif
 #endif
 }
@@ -1009,7 +1009,7 @@ void ArgsManager::ReadConfigFile(const std::string& confPath)
     if (stream.good()) {
         ReadConfigStream(stream);
     } else {
-        // Create an empty dash.conf if it does not excist
+        // Create an empty xazab.conf if it does not excist
         FILE* configFile = fopen(GetConfigFile(confPath).string().c_str(), "a");
         if (configFile != nullptr)
             fclose(configFile);
@@ -1365,9 +1365,9 @@ std::string CopyrightHolders(const std::string& strPrefix, unsigned int nStartYe
 {
     std::string strCopyrightHolders = strPrefix + strprintf(" %u-%u ", nStartYear, nEndYear) + strprintf(_(COPYRIGHT_HOLDERS), _(COPYRIGHT_HOLDERS_SUBSTITUTION));
 
-    // Check for untranslated substitution to make sure Dash Core copyright is not removed by accident
-    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Dash Core") == std::string::npos) {
-        strCopyrightHolders += "\n" + strPrefix + strprintf(" %u-%u ", 2014, nEndYear) + "The Dash Core developers";
+    // Check for untranslated substitution to make sure Xazab Core copyright is not removed by accident
+    if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Xazab Core") == std::string::npos) {
+        strCopyrightHolders += "\n" + strPrefix + strprintf(" %u-%u ", 2014, nEndYear) + "The Xazab Core developers";
     }
     // Check for untranslated substitution to make sure Bitcoin Core copyright is not removed by accident
     if (strprintf(COPYRIGHT_HOLDERS, COPYRIGHT_HOLDERS_SUBSTITUTION).find("Bitcoin Core") == std::string::npos) {

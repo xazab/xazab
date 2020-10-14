@@ -1,6 +1,6 @@
 [Protocol]
-exec=dash-qt '%u'
-protocol=dash
+exec=xazab-qt '%u'
+protocol=xazab
 input=none
 output=none
 helper=true

@@ -21,4 +21,4 @@ FORMS += \
     ../src/qt/forms/transactiondescdialog.ui
 
 RESOURCES += \
-    ../src/qt/dash.qrc
+    ../src/qt/xazab.qrc
