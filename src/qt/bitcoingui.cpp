@@ -1173,9 +1173,6 @@ void BitcoinGUI::updatePrivateSendVisibility()
 
 void BitcoinGUI::updateWidth()
 {
-    if (walletFrame == nullptr) {
-        return;
-    }
     if (windowState() & (Qt::WindowMaximized | Qt::WindowFullScreen)) {
         return;
     }
