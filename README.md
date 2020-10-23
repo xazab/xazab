@@ -83,7 +83,7 @@ passwd xazab
 ```
 
 
-# For the xazabadmin user, choose a long password and write it down, this is the password you will use from now on to login into the VPS and administer the masternode.
+ For the xazabadmin user, choose a long password and write it down, this is the password you will use from now on to login into the VPS and administer the masternode.
 
 ```shell
 
