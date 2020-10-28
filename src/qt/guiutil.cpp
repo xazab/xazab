@@ -1569,7 +1569,6 @@ void updateFonts()
     }
 
     static std::map<QPointer<QWidget>, int> mapWidgetDefaultFontSizes;
-
     // QPointer becomes nullptr for objects that were deleted.
     // Remove them from mapDefaultFontSize and mapFontUpdates
     // before proceeding any further.
@@ -1594,7 +1593,6 @@ void updateFonts()
             ++itn;
         }
     }
-
     size_t nUpdatable{0}, nUpdated{0};
     std::map<QWidget*, QFont> mapWidgetFonts;
     // Loop through all widgets
