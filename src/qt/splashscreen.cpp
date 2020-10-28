@@ -199,12 +199,13 @@ void SplashScreen::subscribeToCoreSignals()
 void SplashScreen::unsubscribeFromCoreSignals()
 {
     // Disconnect signals from client
-    uiInterface.InitMessage.disconnect(boost::bind(InitMessage, this, _1));
-    uiInterface.ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2, _3));
+    m_handler_init_message->disconnect();
+    m_handler_show_progress->disconnect();
 #ifdef ENABLE_WALLET
-    uiInterface.LoadWallet.disconnect(boost::bind(&SplashScreen::ConnectWallet, this, _1));
-    for (CWallet* const & pwallet : connectedWallets) {
-        pwallet->ShowProgress.disconnect(boost::bind(ShowProgress, this, _1, _2, false));
+    m_handler_load_wallet->disconnect();
+#endif // ENABLE_WALLET
+    for (auto& handler : m_connected_wallet_handlers) {
+        handler->disconnect();
     }
 #endif
 }
