@@ -33,16 +33,16 @@ SplashScreen::SplashScreen(Qt::WindowFlags f, const NetworkStyle *networkStyle) 
 
     // transparent background
     setAttribute(Qt::WA_TranslucentBackground);
-    setStyleSheet("background:transparent;");
+    setStyleSheet("background:url(:/images/splash);");
 
     // no window decorations
     setWindowFlags(Qt::FramelessWindowHint);
 
     // Geometries of splashscreen
-    int width = 380;
-    int height = 460;
-    int logoWidth = 270;
-    int logoHeight = 270;
+    int width = 450;
+    int height = 473;
+    int logoWidth = 450;
+    int logoHeight = 473;
 
     // set reference point, paddings
     int paddingTop = 10;
