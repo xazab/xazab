@@ -104,6 +104,26 @@ dbcc49efc095f4461882acf8dc78dd0e20b27933eb32c1b875fabb64000364fc  xazabcore-0.16
 [Armv8 binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-aarch64-linux-gnu.tar.gz)
 
 
+## Links
+
+### Social Media
+
+- [Discord](https://discord.gg/U6uBeAV)
+
+- [Telegram](https://t.me/joinchat/TYwTVRgmXnTDypLAQkn-RQ)
+
+### Pool
+
+- [https://www.0769.it/](https://www.0769.it)
+
+### Explorer 
+
+- [Official Explorer](https://explorer.xazab.xyz/insight/)
+
+### Explorer Api
+
+- [Official Api](https://insight.xazab.xyz/insight-api/blocks)
+
 
 License
 -------
