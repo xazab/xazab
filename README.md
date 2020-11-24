@@ -86,13 +86,21 @@ ffa22236a0dbe30e601acdc95b36f1353dbaa6c9dd095b9ef7900ad681d21644  xazabcore-0.16
 dbcc49efc095f4461882acf8dc78dd0e20b27933eb32c1b875fabb64000364fc  xazabcore-0.16.0.1-osx64.tar.gz
 ```
 [Android Mobile Wallet](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazab-wallet-prod-release.apk)
+
 [64-bit windows Installer](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0-win64-setup.exe)
+
 [64-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.1-win64.zip)
+
 [32-bit windows binaries Installer](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.1-win32-setup.exe)
+
 [32-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-win32.zip)
+
 [64-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-x86_64-linux-gnu.tar.gz)
+
 [32-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.1-i686-pc-linux-gnu.tar.gz)
+
 [Armv7 binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-arm-linux-gnueabihf.tar.gz)
+
 [Armv8 binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-aarch64-linux-gnu.tar.gz)
 
 
