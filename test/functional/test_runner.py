@@ -145,8 +145,11 @@ BASE_SCRIPTS= [
     'feature_minchainwork.py',
     'p2p_unrequested_blocks.py', # NOTE: needs xazab_hash to pass
     'feature_shutdown.py',
-    'privatesend.py',
-    'uacomment.py',
+    'rpc_privatesend.py',
+    'p2p_fingerprint.py',
+    'rpc_platform_filter.py',
+    'feature_uacomment.py',
+    'p2p_unrequested_blocks.py',
     'feature_logging.py',
     'node_network_limited.py',
     'conf_args.py',
