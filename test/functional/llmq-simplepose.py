@@ -42,7 +42,7 @@ class LLMQSimplePoSeTest(XazabTestFramework):
         self.reset_probe_timeouts()
 
         # Make sure no banning happens with spork21 enabled
-        self.test_no_banning(expected_connections=4)
+        self.test_no_banning()
 
         # Lets restart masternodes with closed ports and verify that they get banned even though they are connected to other MNs (via outbound connections)
         def close_mn_port(mn):
@@ -66,9 +66,9 @@ class LLMQSimplePoSeTest(XazabTestFramework):
             self.reset_probe_timeouts()
         self.test_banning(force_old_mn_proto, False)
 
-    def test_no_banning(self, expected_connections=1):
+    def test_no_banning(self):
         for i in range(3):
-            self.mine_quorum(expected_connections=expected_connections)
+            self.mine_quorum()
         for mn in self.mninfo:
             assert(not self.check_punished(mn) and not self.check_banned(mn))
 
