@@ -99,6 +99,7 @@ class LLMQ_IS_RetroactiveSigning(XazabTestFramework):
         # Make node0 consider the TX as safe
         self.bump_mocktime(10 * 60 + 1)
         block = self.nodes[0].generate(1)[0]
+        assert(txid in self.nodes[0].getblock(block, 1)['tx'])
         self.wait_for_chainlocked_block_all_nodes(block)
 
         self.log.info("testing retroactive signing with partially known TX and all nodes session timeout")
@@ -144,6 +145,7 @@ class LLMQ_IS_RetroactiveSigning(XazabTestFramework):
         # Make node 0 consider the TX as safe
         self.bump_mocktime(10 * 60 + 1)
         block = self.nodes[0].generate(1)[0]
+        assert(txid in self.nodes[0].getblock(block, 1)['tx'])
         self.wait_for_chainlocked_block_all_nodes(block)
 
     def test_single_node_session_timeout(self, do_cycle_llmqs):
@@ -175,6 +177,7 @@ class LLMQ_IS_RetroactiveSigning(XazabTestFramework):
         # Make node 0 consider the TX as safe
         self.bump_mocktime(10 * 60 + 1)
         block = self.nodes[0].generate(1)[0]
+        assert(txid in self.nodes[0].getblock(block, 1)['tx'])
         self.wait_for_chainlocked_block_all_nodes(block)
 
 if __name__ == '__main__':
