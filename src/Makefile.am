@@ -10,6 +10,7 @@ AM_CXXFLAGS = $(HARDENED_CXXFLAGS) $(ERROR_CXXFLAGS)
 AM_CPPFLAGS = $(HARDENED_CPPFLAGS)
 EXTRA_LIBRARIES =
 
+if ENABLE_STACKTRACES
 if ENABLE_CRASH_HOOKS
 if CRASH_HOOKS_WRAPPED_CXX_ABI
 # Wrap internal C++ ABI's so that we can attach stacktraces to exceptions
@@ -27,6 +28,7 @@ BACKTRACE_LIB = -ldbghelp -lbacktrace
 else
 BACKTRACE_LIB = -lbacktrace
 endif
+endif #ENABLE_STACKTRACES
 
 if EMBEDDED_UNIVALUE
 LIBUNIVALUE = univalue/libunivalue.la
