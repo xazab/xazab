@@ -2,7 +2,7 @@
 # Copyright (c) 2018-2020 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test the dash specific ZMQ notification interfaces."""
+"""Test the xazab specific ZMQ notification interfaces."""
 
 import configparser
 from enum import Enum
@@ -13,7 +13,7 @@ import struct
 import time
 import zmq
 
-from test_framework.test_framework import DashTestFramework, SkipTest
+from test_framework.test_framework import XazabTestFramework, SkipTest
 from test_framework.util import assert_equal, assert_raises_rpc_error, bytes_to_hex_str, force_finish_mnsync
 from test_framework.messages import (CBlock, CGovernanceObject, CGovernanceVote, COutPoint, CRecoveredSig, CTransaction,
                                     msg_clsig, msg_islock,
@@ -36,7 +36,7 @@ class ZMQPublisher(Enum):
     raw_instantsend_doublespend = "rawinstantsenddoublespend"
     raw_recovered_sig = "rawrecoveredsig"
 
-class DashZMQTest (DashTestFramework):
+class XazabZMQTest (XazabTestFramework):
     def set_test_params(self):
         # That's where the zmq publisher will listen for subscriber
         self.address = "tcp://127.0.0.1:28333"
@@ -44,16 +44,16 @@ class DashZMQTest (DashTestFramework):
         node0_extra_args = ["-zmqpub%s=%s" % (pub.value, self.address) for pub in ZMQPublisher]
         node0_extra_args.append("-whitelist=127.0.0.1")
 
-        self.set_dash_test_params(4, 3, fast_dip3_enforcement=True, extra_args=[node0_extra_args, [], [], []])
-        self.set_dash_dip8_activation(10)
+        self.set_xazab_test_params(4, 3, fast_dip3_enforcement=True, extra_args=[node0_extra_args, [], [], []])
+        self.set_xazab_dip8_activation(10)
 
     def run_test(self):
-        # Check that dashd has been built with ZMQ enabled.
+        # Check that xazabd has been built with ZMQ enabled.
         config = configparser.ConfigParser()
         config.read_file(open(self.options.configfile))
 
         if not config["components"].getboolean("ENABLE_ZMQ"):
-            raise SkipTest("dashd has not been built with zmq enabled.")
+            raise SkipTest("xazabd has not been built with zmq enabled.")
 
         try:
             # Setup the ZMQ subscriber socket
@@ -78,7 +78,7 @@ class DashZMQTest (DashTestFramework):
             # Wait a moment to avoid subscribing to recovered sig in the test before the one from the chainlock
             # has been sent which leads to test failure.
             time.sleep(1)
-            # Test all dash related ZMQ publisher
+            # Test all xazab related ZMQ publisher
             self.test_recovered_signature_publishers()
             self.test_chainlock_publishers()
             self.test_instantsend_publishers()
@@ -262,7 +262,7 @@ class DashZMQTest (DashTestFramework):
             "end_epoch": proposal_time + 60,
             "payment_amount": 5,
             "payment_address": self.nodes[0].getnewaddress(),
-            "url": "https://dash.org"
+            "url": "https://xazab.xyz"
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_data).encode())
         collateral = self.nodes[0].gobject("prepare", "0", proposal_rev, proposal_time, proposal_hex)
@@ -317,4 +317,4 @@ class DashZMQTest (DashTestFramework):
 
 
 if __name__ == '__main__':
-    DashZMQTest().main()
+    XazabZMQTest().main()
