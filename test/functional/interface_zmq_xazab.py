@@ -2,7 +2,7 @@
 # Copyright (c) 2018-2020 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Test the xazab specific ZMQ notification interfaces."""
+"""Test the dash specific ZMQ notification interfaces."""
 
 import configparser
 from enum import Enum
@@ -13,7 +13,7 @@ import struct
 import time
 import zmq
 
-from test_framework.test_framework import XazabTestFramework, SkipTest
+from test_framework.test_framework import DashTestFramework, SkipTest
 from test_framework.util import assert_equal, assert_raises_rpc_error, bytes_to_hex_str, force_finish_mnsync
 from test_framework.messages import (CBlock, CGovernanceObject, CGovernanceVote, COutPoint, CRecoveredSig, CTransaction,
                                     msg_clsig, msg_islock,
@@ -36,7 +36,7 @@ class ZMQPublisher(Enum):
     raw_instantsend_doublespend = "rawinstantsenddoublespend"
     raw_recovered_sig = "rawrecoveredsig"
 
-class XazabZMQTest (XazabTestFramework):
+class DashZMQTest (DashTestFramework):
     def set_test_params(self):
         # That's where the zmq publisher will listen for subscriber
         self.address = "tcp://127.0.0.1:28333"
@@ -44,16 +44,16 @@ class XazabZMQTest (XazabTestFramework):
         node0_extra_args = ["-zmqpub%s=%s" % (pub.value, self.address) for pub in ZMQPublisher]
         node0_extra_args.append("-whitelist=127.0.0.1")
 
-        self.set_xazab_test_params(4, 3, fast_dip3_enforcement=True, extra_args=[node0_extra_args, [], [], []])
-        self.set_xazab_dip8_activation(10)
+        self.set_dash_test_params(4, 3, fast_dip3_enforcement=True, extra_args=[node0_extra_args, [], [], []])
+        self.set_dash_dip8_activation(10)
 
     def run_test(self):
-        # Check that xazabd has been built with ZMQ enabled.
+        # Check that dashd has been built with ZMQ enabled.
         config = configparser.ConfigParser()
         config.read_file(open(self.options.configfile))
 
         if not config["components"].getboolean("ENABLE_ZMQ"):
-            raise SkipTest("xazabd has not been built with zmq enabled.")
+            raise SkipTest("dashd has not been built with zmq enabled.")
 
         try:
             # Setup the ZMQ subscriber socket
@@ -70,7 +70,7 @@ class XazabZMQTest (XazabTestFramework):
             self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 0)
             self.wait_for_sporks_same()
             force_finish_mnsync(self.nodes[0])
-            # Create an LLMQ for testing
+            # Create a LLMQ for testing
             self.quorum_type = 100  # llmq_test
             self.quorum_hash = self.mine_quorum()
             self.sync_blocks()
@@ -78,7 +78,7 @@ class XazabZMQTest (XazabTestFramework):
             # Wait a moment to avoid subscribing to recovered sig in the test before the one from the chainlock
             # has been sent which leads to test failure.
             time.sleep(1)
-            # Test all xazab related ZMQ publisher
+            # Test all dash related ZMQ publisher
             self.test_recovered_signature_publishers()
             self.test_chainlock_publishers()
             self.test_instantsend_publishers()
@@ -89,17 +89,17 @@ class XazabZMQTest (XazabTestFramework):
             self.zmq_context.destroy(linger=None)
 
     def subscribe(self, publishers):
-        # Subscribe to a list of ZMQPublishers
+        # Subscribe a list of ZMQPublisher
         for pub in publishers:
             self.socket.subscribe(pub.value)
 
     def unsubscribe(self, publishers):
-        # Unsubscribe from a list of ZMQPublishers
+        # Unsubscribe a list of ZMQPublisher
         for pub in publishers:
             self.socket.unsubscribe(pub.value)
 
     def receive(self, publisher):
-        # Receive a ZMQ message and validate it's sent from the correct ZMQPublisher
+        # Receive a ZMQ message and validate its sent from the correct ZMQPublisher
         topic, body, seq = self.socket.recv_multipart()
         # Topic should match the publisher value
         assert_equal(topic.decode(), publisher.value)
@@ -127,7 +127,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_recovered_sig
         ]
         self.log.info("Testing %d recovered signature publishers" % len(recovered_sig_publishers))
-        # Subscribe to recovered signature messages
+        # Subscribe recovered signature messages
         self.subscribe(recovered_sig_publishers)
         # Generate a ChainLock and make sure this leads to valid recovered sig ZMQ messages
         rpc_last_block_hash = self.nodes[0].generate(1)[0]
@@ -141,7 +141,7 @@ class XazabZMQTest (XazabTestFramework):
         for mn in self.get_quorum_masternodes(self.quorum_hash):
             mn.node.quorum("sign", self.quorum_type, sign_id, sign_msg_hash)
         validate_recovered_sig(sign_id, sign_msg_hash)
-        # Unsubscribe from recovered signature messages
+        # Unsubscribe recovered signature messages
         self.unsubscribe(recovered_sig_publishers)
 
     def test_chainlock_publishers(self):
@@ -151,7 +151,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_chain_lock_sig
         ]
         self.log.info("Testing %d ChainLock publishers" % len(chain_lock_publishers))
-        # Subscribe to ChainLock messages
+        # Subscribe ChainLock messages
         self.subscribe(chain_lock_publishers)
         # Generate ChainLock
         generated_hash = self.nodes[0].generate(1)[0]
@@ -183,7 +183,7 @@ class XazabZMQTest (XazabTestFramework):
         assert_equal(uint256_to_string(zmq_chain_lock.blockHash), rpc_chain_lock_hash)
         assert_equal(zmq_chain_locked_block.hash, rpc_chain_lock_hash)
         assert_equal(bytes_to_hex_str(zmq_chain_lock.sig), rpc_best_chain_lock_sig)
-        # Unsubscribe from ChainLock messages
+        # Unsubscribe ChainLock messages
         self.unsubscribe(chain_lock_publishers)
 
     def test_instantsend_publishers(self):
@@ -195,7 +195,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_instantsend_doublespend
         ]
         self.log.info("Testing %d InstantSend publishers" % len(instantsend_publishers))
-        # Subscribe to InstantSend messages
+        # Subscribe InstantSend messages
         self.subscribe(instantsend_publishers)
         # Make sure all nodes agree
         self.wait_for_chainlocked_block_all_nodes(self.nodes[0].getbestblockhash())
@@ -239,7 +239,7 @@ class XazabZMQTest (XazabTestFramework):
         zmq_double_spend_tx_1.deserialize(self.receive(ZMQPublisher.raw_instantsend_doublespend))
         assert(zmq_double_spend_tx_1.is_valid())
         assert_equal(zmq_double_spend_tx_1.hash, rpc_raw_tx_1['txid'])
-        # Unsubscribe from InstantSend messages
+        # Unsubscribe InstantSend messages
         self.unsubscribe(instantsend_publishers)
 
     def test_governance_publishers(self):
@@ -250,7 +250,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_governance_vote
         ]
         self.log.info("Testing %d governance publishers" % len(governance_publishers))
-        # Subscribe to governance messages
+        # Subscribe governance messages
         self.subscribe(governance_publishers)
         # Create a proposal and submit it to the network
         proposal_rev = 1
@@ -262,7 +262,7 @@ class XazabZMQTest (XazabTestFramework):
             "end_epoch": proposal_time + 60,
             "payment_amount": 5,
             "payment_address": self.nodes[0].getnewaddress(),
-            "url": "https://xazab.xyz"
+            "url": "https://dash.org"
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_data).encode())
         collateral = self.nodes[0].gobject("prepare", "0", proposal_rev, proposal_time, proposal_hex)
@@ -312,9 +312,9 @@ class XazabZMQTest (XazabTestFramework):
         assert_equal(zmq_governance_vote_raw.nTime, int(rpc_vote_parts[1]))
         assert_equal(map_vote_outcomes[zmq_governance_vote_raw.nVoteOutcome], rpc_vote_parts[2])
         assert_equal(map_vote_signals[zmq_governance_vote_raw.nVoteSignal], rpc_vote_parts[3])
-        # Unsubscribe from governance messages
+        # Unsubscribe governance messages
         self.unsubscribe(governance_publishers)
 
 
 if __name__ == '__main__':
-    XazabZMQTest().main()
+    DashZMQTest().main()
