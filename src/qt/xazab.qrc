@@ -107,6 +107,7 @@
         <file alias="radio_normal_disabled_light">res/images/radio_normal_disabled_light.png</file>
         <file alias="radio_checked_disabled_light">res/images/radio_checked_disabled_light.png</file>
         <file alias="splash">res/images/splash.png</file>
+	<file alias="drkblue_walletFrame_bg">res/images/drkblue_walletFrame_bg.png</file>
     </qresource>
     <qresource prefix="/movies">
         <file alias="spinner-000">res/movies/spinner-000.png</file>
