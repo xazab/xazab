@@ -317,7 +317,8 @@ UniValue masternode_winners(const JSONRPCRequest& request)
     UniValue obj(UniValue::VOBJ);
     auto mapPayments = GetRequiredPaymentsStrings(nHeight - nLast, nHeight + 20);
     for (const auto &p : mapPayments) {
-        obj.push_back(Pair(strprintf("%d", p.first), p.second));
+        if (strFilter != "" && p.second.find(strFilter) == std::string::npos) continue;
+        obj.pushKV(strprintf("%d", p.first), p.second);
     }
 
     return obj;
