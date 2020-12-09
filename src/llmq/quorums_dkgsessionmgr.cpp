@@ -60,7 +60,7 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
         return;
     if (!deterministicMNManager->IsDIP3Enforced(pindexNew->nHeight))
         return;
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return;
 
     for (auto& qt : dkgSessionHandlers) {
@@ -70,7 +70,7 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
 
 void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return;
 
     if (strCommand != NetMsgType::QCONTRIB
@@ -105,7 +105,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
 
 bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -122,7 +122,7 @@ bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
 
 bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -142,7 +142,7 @@ bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& 
 
 bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -162,7 +162,7 @@ bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) c
 
 bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -182,7 +182,7 @@ bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification
 
 bool CDKGSessionManager::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -274,6 +274,11 @@ void CDKGSessionManager::CleanupCache()
             ++it;
         }
     }
+}
+
+bool IsQuorumDKGEnabled()
+{
+    return sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED);
 }
 
 } // namespace llmq
