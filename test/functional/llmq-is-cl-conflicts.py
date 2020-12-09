@@ -298,35 +298,5 @@ class LLMQ_IS_CL_Conflicts(XazabTestFramework):
         clsig = msg_clsig(height, blockHash, hex_str_to_bytes(recSig['sig']))
         return clsig
 
-    def create_islock(self, hextx):
-        tx = FromHex(CTransaction(), hextx)
-        tx.rehash()
-
-        request_id_buf = ser_string(b"islock") + ser_compact_size(len(tx.vin))
-        inputs = []
-        for txin in tx.vin:
-            request_id_buf += txin.prevout.serialize()
-            inputs.append(txin.prevout)
-        request_id = "%064x" % uint256_from_str(hash256(request_id_buf))
-        message_hash = "%064x" % tx.sha256
-
-        for mn in self.mninfo:
-            mn.node.quorum('sign', 100, request_id, message_hash)
-
-        recSig = None
-
-        t = time.time()
-        while time.time() - t < 10:
-            try:
-                recSig = self.nodes[0].quorum('getrecsig', 100, request_id, message_hash)
-                break
-            except:
-                time.sleep(0.1)
-        assert(recSig is not None)
-
-        islock = msg_islock(inputs, tx.sha256, hex_str_to_bytes(recSig['sig']))
-        return islock
-
-
 if __name__ == '__main__':
     LLMQ_IS_CL_Conflicts().main()
