@@ -27,56 +27,6 @@ void AppendParamsHelpMessages(std::string& strUsage, bool debugHelp)
     }
 }
 
-/**
- * Main network
- */
-class CBaseMainParams : public CBaseChainParams
-{
-public:
-    CBaseMainParams()
-    {
-        nRPCPort = 31313;
-    }
-};
-
-/**
- * Testnet (v3)
- */
-class CBaseTestNetParams : public CBaseChainParams
-{
-public:
-    CBaseTestNetParams()
-    {
-        nRPCPort = 41414;
-        strDataDir = "testnet3";
-    }
-};
-
-/**
- * Devnet
- */
-class CBaseDevNetParams : public CBaseChainParams
-{
-public:
-    CBaseDevNetParams(const std::string &dataDir)
-    {
-        nRPCPort = 41414;
-        strDataDir = dataDir;
-    }
-};
-
-/*
- * Regression test
- */
-class CBaseRegTestParams : public CBaseChainParams
-{
-public:
-    CBaseRegTestParams()
-    {
-        nRPCPort = 42424;
-        strDataDir = "regtest";
-    }
-};
 
 static std::unique_ptr<CBaseChainParams> globalChainBaseParams;
 
@@ -89,13 +39,13 @@ const CBaseChainParams& BaseParams()
 std::unique_ptr<CBaseChainParams> CreateBaseChainParams(const std::string& chain)
 {
     if (chain == CBaseChainParams::MAIN)
-        return std::unique_ptr<CBaseChainParams>(new CBaseMainParams());
+        return MakeUnique<CBaseChainParams>("", 31313);
     else if (chain == CBaseChainParams::TESTNET)
-        return std::unique_ptr<CBaseChainParams>(new CBaseTestNetParams());
-    else if (chain == CBaseChainParams::DEVNET) {
-        return std::unique_ptr<CBaseChainParams>(new CBaseDevNetParams(gArgs.GetDevNetName()));
-    } else if (chain == CBaseChainParams::REGTEST)
-        return std::unique_ptr<CBaseChainParams>(new CBaseRegTestParams());
+        return MakeUnique<CBaseChainParams>("testnet3", 41414);
+    else if (chain == CBaseChainParams::DEVNET)
+        return MakeUnique<CBaseChainParams>(gArgs.GetDevNetName(), 41414);
+    else if (chain == CBaseChainParams::REGTEST)
+        return MakeUnique<CBaseChainParams>("regtest", 42424);
     else
         throw std::runtime_error(strprintf("%s: Unknown chain %s.", __func__, chain));
 }
