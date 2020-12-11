@@ -348,8 +348,8 @@ class DIP3Test(BitcoinTestFramework):
 
         rawtx = self.nodes[0].createrawtransaction(txins, targets)
         rawtx = self.nodes[0].fundrawtransaction(rawtx)['hex']
-        rawtx = self.nodes[0].signrawtransaction(rawtx)['hex']
-        new_txid = self.nodes[0].sendrawtransaction(rawtx)
+        rawtx = self.nodes[0].signrawtransactionwithwallet(rawtx)['hex']
+        self.nodes[0].sendrawtransaction(rawtx)
 
         return dummy_txin
 
@@ -445,7 +445,7 @@ class DIP3Test(BitcoinTestFramework):
         amount -= Decimal("0.001") # fee
 
         rawtx = node.createrawtransaction(txins, {target_address: amount})
-        rawtx = node.signrawtransaction(rawtx)['hex']
+        rawtx = node.signrawtransactionwithwallet(rawtx)['hex']
         tx = FromHex(CTransaction(), rawtx)
 
         self.mine_block(node, [tx], use_mnmerkleroot_from_tip=use_mnmerkleroot_from_tip)
