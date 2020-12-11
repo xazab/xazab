@@ -455,7 +455,7 @@ class BitcoinTestFramework():
             self.set_genesis_mocktime()
             for i in range(MAX_NODES):
                 datadir = initialize_datadir(self.options.cachedir, i)
-                args = [os.getenv("XAZABD", "xazabd"), "-server", "-keypool=1", "-datadir=" + datadir, "-discover=0", "-mocktime="+str(GENESISTIME)]
+                args = [self.options.bitcoind, "-datadir=" + datadir, "-mocktime="+str(GENESISTIME)]
                 if i > 0:
                     args.append("-connect=127.0.0.1:" + str(p2p_port(0)))
                 if extra_args is not None:
@@ -546,7 +546,7 @@ class XazabTestFramework(BitcoinTestFramework):
                 self.extra_args[i].append("-dip3params=30:50")
 
         # make sure to activate dip8 after prepare_masternodes has finished its job already
-        self.set_dash_dip8_activation(200)
+        self.set_xazab_dip8_activation(200)
 
         # LLMQ default test params (no need to pass -llmqtestparams)
         self.llmq_size = 3
