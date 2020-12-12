@@ -16,7 +16,6 @@ Simulate and check DKG errors
 class LLMQDKGErrors(XazabTestFramework):
     def set_test_params(self):
         self.set_xazab_test_params(4, 3, [["-whitelist=127.0.0.1"]] * 4, fast_dip3_enforcement=True)
-        self.set_xazab_dip8_activation(10)
 
     def run_test(self):
 

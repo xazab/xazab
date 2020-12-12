@@ -23,7 +23,6 @@ class LLMQ_IS_RetroactiveSigning(XazabTestFramework):
         # -whitelist is needed to avoid the trickling logic on node0
         self.set_xazab_test_params(6, 5, [["-whitelist=127.0.0.1"], [], [], [], ["-minrelaytxfee=0.001"], ["-minrelaytxfee=0.001"]], fast_dip3_enforcement=True)
         self.set_xazab_llmq_test_params(5, 3)
-        self.set_xazab_dip8_activation(10)
 
     def run_test(self):
         while self.nodes[0].getblockchaininfo()["bip9_softforks"]["dip0008"]["status"] != "active":
@@ -31,9 +30,6 @@ class LLMQ_IS_RetroactiveSigning(XazabTestFramework):
         self.sync_blocks(self.nodes, timeout=60*5)
 
         self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
-        self.nodes[0].spork("SPORK_19_CHAINLOCKS_ENABLED", 0)
-        self.nodes[0].spork("SPORK_2_INSTANTSEND_ENABLED", 0)
-        self.nodes[0].spork("SPORK_3_INSTANTSEND_BLOCK_FILTERING", 0)
         self.wait_for_sporks_same()
 
         self.mine_quorum()
