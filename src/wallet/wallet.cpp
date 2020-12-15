@@ -5573,10 +5573,12 @@ bool CMerkleTx::IsLockedByInstantSend() const
 
 bool CMerkleTx::IsChainLocked() const
 {
-    AssertLockHeld(cs_main);
-    BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
-    if (mi != mapBlockIndex.end() && mi->second != nullptr) {
-        return llmq::chainLocksHandler->HasChainLock(mi->second->nHeight, hashBlock);
+    if (!fIsChainlocked) {
+        AssertLockHeld(cs_main);
+        CBlockIndex* pIndex = LookupBlockIndex(hashBlock);
+        if (pIndex != nullptr) {
+            fIsChainlocked = llmq::chainLocksHandler->HasChainLock(pIndex->nHeight, hashBlock);
+        }
     }
     return false;
 }
