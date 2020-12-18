@@ -11,10 +11,13 @@ import json
 import random
 import struct
 import time
-import zmq
+try:
+    import zmq
+finally:
+    pass
 
-
-from test_framework.test_framework import XazabTestFramework, SkipTest
+from test_framework.test_framework import (
+     XazabTestFramework, skip_if_no_bitcoind_zmq, skip_if_no_py3_zmq)
 from test_framework.mininode import P2PInterface, network_thread_start
 from test_framework.util import assert_equal, assert_raises_rpc_error, bytes_to_hex_str
 from test_framework.messages import (
@@ -97,8 +100,8 @@ class XazabZMQTest (XazabTestFramework):
         config = configparser.ConfigParser()
         config.read_file(open(self.options.configfile))
 
-        if not config["components"].getboolean("ENABLE_ZMQ"):
-            raise SkipTest("xazabd has not been built with zmq enabled.")
+        skip_if_no_py3_zmq()
+        skip_if_no_bitcoind_zmq(self)
 
         try:
             # Setup the ZMQ subscriber socket
