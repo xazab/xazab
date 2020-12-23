@@ -278,6 +278,42 @@ UniValue masternode_status(const JSONRPCRequest& request)
     return mnObj;
 }
 
+std::string GetRequiredPaymentsString(int nBlockHeight, const CDeterministicMNCPtr &payee)
+{
+    std::string strPayments = "Unknown";
+    if (payee) {
+        CTxDestination dest;
+        if (!ExtractDestination(payee->pdmnState->scriptPayout, dest)) {
+            assert(false);
+        }
+        strPayments = EncodeDestination(dest);
+        if (payee->nOperatorReward != 0 && payee->pdmnState->scriptOperatorPayout != CScript()) {
+            if (!ExtractDestination(payee->pdmnState->scriptOperatorPayout, dest)) {
+                assert(false);
+            }
+            strPayments += ", " + EncodeDestination(dest);
+        }
+    }
+    if (CSuperblockManager::IsSuperblockTriggered(nBlockHeight)) {
+        std::vector<CTxOut> voutSuperblock;
+        if (!CSuperblockManager::GetSuperblockPayments(nBlockHeight, voutSuperblock)) {
+            return strPayments + ", error";
+        }
+        std::string strSBPayees = "Unknown";
+        for (const auto& txout : voutSuperblock) {
+            CTxDestination dest;
+            ExtractDestination(txout.scriptPubKey, dest);
+            if (strSBPayees != "Unknown") {
+                strSBPayees += ", " + EncodeDestination(dest);
+            } else {
+                strSBPayees = EncodeDestination(dest);
+            }
+        }
+        strPayments += ", " + strSBPayees;
+    }
+    return strPayments;
+}
+
 void masternode_winners_help()
 {
     throw std::runtime_error(
