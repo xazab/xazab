@@ -212,7 +212,7 @@ class BitcoinTestFramework():
 
     # Methods to override in subclass test scripts.
     def set_test_params(self):
-        """Tests must this method to change default values for number of nodes, topology, etc"""
+        """Tests must override this method to change default values for number of nodes, topology, etc"""
         raise NotImplementedError
 
     def add_options(self, parser):
