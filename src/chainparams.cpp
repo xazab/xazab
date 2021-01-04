@@ -347,7 +347,7 @@ public:
         consensus.DIP0003Height = 20; // 000003e02c207c290aba728ffe961b7797e32efc61e985aca036b48ac50480cb
         consensus.DIP0003EnforcementHeight = 30;
         consensus.DIP0003EnforcementHash = uint256S("0000047b2bb97f484c45bf6e18e64fcc5fae8b4043893e01f48a43500ba10617");
-        consensus.DIP0008Height = 1088640;
+        consensus.DIP0008Height = 180000;
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
