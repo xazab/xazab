@@ -24,6 +24,15 @@ from .authproxy import AuthServiceProxy, JSONRPCException
 
 logger = logging.getLogger("TestFramework.utils")
 
+# Util options
+##############
+
+class Options:
+    timeout_scale = 1
+
+def set_timeout_scale(_timeout_scale):
+    Options.timeout_scale = _timeout_scale
+
 # Assert functions
 ##################
 
@@ -207,6 +216,7 @@ def wait_until(predicate, *, attempts=float('inf'), timeout=float('inf'), sleep=
     if attempts == float('inf') and timeout == float('inf'):
         timeout = 60
     attempt = 0
+    timeout *= Options.timeout_scale
     time_end = time.time() + timeout
 
     while attempt < attempts and time.time() < time_end:
@@ -298,7 +308,7 @@ def rpc_url(datadir, i, rpchost=None):
 ################
 
 def initialize_datadir(dirname, n):
-    datadir = os.path.join(dirname, "node" + str(n))
+    datadir = get_datadir_path(dirname, n)
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
     with open(os.path.join(datadir, "xazab.conf"), 'w', encoding='utf8') as f:
@@ -315,6 +325,11 @@ def initialize_datadir(dirname, n):
 def get_datadir_path(dirname, n):
     return os.path.join(dirname, "node" + str(n))
 
+def append_config(datadir, options):
+    with open(os.path.join(datadir, "xazab.conf"), 'a', encoding='utf8') as f:
+        for option in options:
+            f.write(option + "\n")
+
 def get_auth_cookie(datadir):
     user = None
     password = None
@@ -328,7 +343,7 @@ def get_auth_cookie(datadir):
                     assert password is None  # Ensure that there is only one rpcpassword line
                     password = line.split("=")[1].strip("\n")
     if os.path.isfile(os.path.join(datadir, "regtest", ".cookie")):
-        with open(os.path.join(datadir, "regtest", ".cookie"), 'r') as f:
+        with open(os.path.join(datadir, "regtest", ".cookie"), 'r', encoding="ascii") as f:
             userpass = f.read()
             split_userpass = userpass.split(':')
             user = split_userpass[0]
@@ -421,7 +436,7 @@ def sync_blocks(rpc_connections, *, wait=1, timeout=60):
         time.sleep(wait)
     raise AssertionError("Block sync timed out:{}".format("".join("\n  {!r}".format(b) for b in best_hash)))
 
-def sync_mempools(rpc_connections, *, wait=1, timeout=60, wait_func=None):
+def sync_mempools(rpc_connections, *, wait=1, timeout=60, flush_scheduler=True, wait_func=None):
     """
     Wait until everybody has the same transactions in their memory
     pools
@@ -609,3 +624,14 @@ def mine_large_block(node, utxos=None):
     fee = 100 * node.getnetworkinfo()["relayfee"]
     create_lots_of_big_transactions(node, txouts, utxos, num, fee=fee)
     node.generate(1)
+
+def find_vout_for_address(node, txid, addr):
+    """
+    Locate the vout index of the given transaction sending to the
+    given address. Raises runtime error exception if not found.
+    """
+    tx = node.getrawtransaction(txid, True)
+    for i in range(len(tx["vout"])):
+        if any([addr == a for a in tx["vout"][i]["scriptPubKey"]["addresses"]]):
+            return i
+    raise RuntimeError("Vout not found for address: txid=%s, addr=%s" % (txid, addr))

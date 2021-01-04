@@ -4,7 +4,6 @@
 
 #include <evo/cbtx.h>
 #include <evo/deterministicmns.h>
-#include <llmq/quorums.h>
 #include <llmq/quorums_blockprocessor.h>
 #include <llmq/quorums_commitment.h>
 #include <evo/simplifiedmns.h>
@@ -12,7 +11,6 @@
 
 #include <chainparams.h>
 #include <consensus/merkle.h>
-#include <univalue.h>
 #include <validation.h>
 
 bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidationState& state)
@@ -39,7 +37,7 @@ bool CheckCbTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValidatio
     }
 
     if (pindexPrev) {
-        bool fDIP0008Active = VersionBitsState(pindexPrev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0008, versionbitscache) == THRESHOLD_ACTIVE;
+        bool fDIP0008Active = pindexPrev->nHeight >= Params().GetConsensus().DIP0008Height;
         if (fDIP0008Active && cbTx.nVersion < 2) {
             return state.DoS(100, false, REJECT_INVALID, "bad-cbtx-version");
         }
@@ -258,6 +256,6 @@ bool CalcCbTxMerkleRootQuorums(const CBlock& block, const CBlockIndex* pindexPre
 
 std::string CCbTx::ToString() const
 {
-    return strprintf("CCbTx(nHeight=%d, nVersion=%d, merkleRootMNList=%s, merkleRootQuorums=%s)",
+    return strprintf("CCbTx(nVersion=%d, nHeight=%d, merkleRootMNList=%s, merkleRootQuorums=%s)",
         nVersion, nHeight, merkleRootMNList.ToString(), merkleRootQuorums.ToString());
 }

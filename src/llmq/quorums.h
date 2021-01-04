@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef XAZAB_QUORUMS_H
-#define XAZAB_QUORUMS_H
+#ifndef BITCOIN_LLMQ_QUORUMS_H
+#define BITCOIN_LLMQ_QUORUMS_H
 
 #include <evo/evodb.h>
 #include <evo/deterministicmns.h>
@@ -24,7 +24,7 @@ class CDKGSessionManager;
 
 /**
  * An object of this class represents a quorum which was mined on-chain (through a quorum commitment)
- * It at least contains informations about the members and the quorum public key which is needed to verify recovered
+ * It at least contains information about the members and the quorum public key which is needed to verify recovered
  * signatures from this quorum.
  *
  * In case the local node is a member of the same quorum and successfully participated in the DKG, the quorum object
@@ -76,7 +76,7 @@ typedef std::shared_ptr<const CQuorum> CQuorumCPtr;
  * The quorum manager maintains quorums which were mined on chain. When a quorum is requested from the manager,
  * it will lookup the commitment (through CQuorumBlockProcessor) and build a CQuorum object from it.
  *
- * It is also responsible for initialization of the inter-quorum connections for new quorums.
+ * It is also responsible for initialization of the intra-quorum connections for new quorums.
  */
 class CQuorumManager
 {
@@ -94,7 +94,7 @@ public:
 
     void UpdatedBlockTip(const CBlockIndex *pindexNew, bool fInitialDownload);
 
-    bool HasQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash);
+    static bool HasQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash);
 
     // all these methods will lock cs_main for a short period of time
     CQuorumCPtr GetQuorum(Consensus::LLMQType llmqType, const uint256& quorumHash);
@@ -117,4 +117,4 @@ extern CQuorumManager* quorumManager;
 
 } // namespace llmq
 
-#endif //XAZAB_QUORUMS_H
+#endif // BITCOIN_LLMQ_QUORUMS_H

@@ -72,7 +72,7 @@ NetworkStyle::NetworkStyle(const QString &_appName, const int iconColorHueShift,
     // Make sure settings migrated properly
     GUIUtil::migrateQtSettings();
     // load pixmap
-    QPixmap appIconPixmap(":/icons/bitcoin");
+    QPixmap appIconPixmap(":/icons/xazab");
 
     if(iconColorHueShift != 0 && iconColorSaturationReduction != 0)
     {
@@ -80,11 +80,7 @@ NetworkStyle::NetworkStyle(const QString &_appName, const int iconColorHueShift,
         QImage appIconImg = appIconPixmap.toImage();
         rotateColors(appIconImg, iconColorHueShift, iconColorSaturationReduction);
         //convert back to QPixmap
-#if QT_VERSION >= 0x040700
         appIconPixmap.convertFromImage(appIconImg);
-#else
-        appIconPixmap = QPixmap::fromImage(appIconImg);
-#endif
         // tweak badge color
         rotateColor(badgeColor, iconColorHueShift, iconColorSaturationReduction);
     }

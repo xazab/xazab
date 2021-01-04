@@ -5,7 +5,7 @@ etc.
 
 There are currently two sets of tests in this directory:
 
-- [functional](/test/functional) which test the functionality of 
+- [functional](/test/functional) which test the functionality of
 xazabd and xazab-qt by interacting with them through the RPC and P2P
 interfaces.
 - [util](/test/util) which tests the xazab utilities, currently only
@@ -25,7 +25,7 @@ Build for your system first. Be sure to enable wallet, utils and daemon when you
 
 Many Xazab specific tests require xazab_hash. To install it:
 
-- Clone the repo `git clone https://github.com/xazab/xazab_hash`
+- Clone the repo `git clone https://github.com/xazabpay/xazab_hash`
 - Install xazab_hash `cd xazab_hash && python3 setup.py install`
 
 The ZMQ functional test requires a python ZMQ library. To install it:
@@ -38,13 +38,13 @@ The ZMQ functional test requires a python ZMQ library. To install it:
 Individual tests can be run by directly calling the test script, eg:
 
 ```
-test/functional/wallet-hd.py
+test/functional/wallet_hd.py
 ```
 
 or can be run through the test_runner harness, eg:
 
 ```
-test/functional/test_runner.py wallet-hd.py
+test/functional/test_runner.py wallet_hd.py
 ```
 
 You can run any combination (incl. duplicates) of tests by calling:
@@ -188,5 +188,5 @@ Use the `-v` option for verbose output.
 # Writing functional tests
 
 You are encouraged to write functional tests for new or existing features.
-Further information about the functional test framework and individual 
+Further information about the functional test framework and individual
 tests is found in [test/functional](/test/functional).

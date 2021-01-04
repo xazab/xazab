@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -13,7 +13,6 @@
 #include <init.h>
 #include <net_processing.h>
 #include <spork.h>
-#include <validation.h>
 
 namespace llmq
 {
@@ -99,9 +98,7 @@ CDKGSessionHandler::CDKGSessionHandler(const Consensus::LLMQParams& _params, CBL
     }
 }
 
-CDKGSessionHandler::~CDKGSessionHandler()
-{
-}
+CDKGSessionHandler::~CDKGSessionHandler() = default;
 
 void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
@@ -145,7 +142,7 @@ void CDKGSessionHandler::StartThread()
         throw std::runtime_error("Tried to start an already started CDKGSessionHandler thread.");
     }
 
-    std::string threadName = strprintf("q-phase-%d", params.type);
+    std::string threadName = strprintf("llmq-%d", (uint8_t)params.type);
     phaseHandlerThread = std::thread(&TraceThread<std::function<void()> >, threadName, std::function<void()>(std::bind(&CDKGSessionHandler::PhaseHandlerThread, this)));
 }
 
@@ -304,7 +301,7 @@ void CDKGSessionHandler::SleepBeforePhase(QuorumPhase curPhase,
                 heightTmp = currentHeight;
             }
             if (phase != curPhase || quorumHash != expectedQuorumHash) {
-                // Smth went wrong and/or we missed quite a few blocks and it's just too late now
+                // Something went wrong and/or we missed quite a few blocks and it's just too late now
                 LogPrint(BCLog::LLMQ_DKG, "CDKGSessionManager::%s -- %s - aborting due unexpected phase/expectedQuorumHash change\n", __func__, params.name);
                 throw AbortPhaseException();
             }

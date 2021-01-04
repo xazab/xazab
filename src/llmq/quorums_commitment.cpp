@@ -1,9 +1,8 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/quorums_commitment.h>
-#include <llmq/quorums_utils.h>
 
 #include <chainparams.h>
 #include <validation.h>

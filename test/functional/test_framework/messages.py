@@ -4,7 +4,7 @@
 # Copyright (c) 2010-2017 The Bitcoin Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
-"""Bitcoin test framework primitive and message strcutures
+"""Bitcoin test framework primitive and message structures
 CBlock, CTransaction, CBlockHeader, CTxIn, CTxOut, etc....:
     data structures that should map to corresponding structures in
     bitcoin/primitives
@@ -22,7 +22,7 @@ import struct
 import time
 
 from test_framework.siphash import siphash256
-from test_framework.util import hex_str_to_bytes, bytes_to_hex_str, wait_until
+from test_framework.util import hex_str_to_bytes, bytes_to_hex_str
 
 import xazab_hash
 
@@ -104,6 +104,10 @@ def uint256_from_str(s):
     for i in range(8):
         r += t[i] << (i * 32)
     return r
+
+
+def uint256_to_string(uint256):
+    return '%064x' % uint256
 
 
 def uint256_from_compact(c):
@@ -297,7 +301,7 @@ class CBlockLocator():
 
 
 class COutPoint():
-    def __init__(self, hash=0, n=0):
+    def __init__(self, hash=0, n=0xFFFFFFFF):
         self.hash = hash
         self.n = n
 
@@ -988,28 +992,17 @@ class msg_version():
 
     def deserialize(self, f):
         self.nVersion = struct.unpack("<i", f.read(4))[0]
-        if self.nVersion == 10300:
-            self.nVersion = 300
         self.nServices = struct.unpack("<Q", f.read(8))[0]
         self.nTime = struct.unpack("<q", f.read(8))[0]
         self.addrTo = CAddress()
         self.addrTo.deserialize(f, False)
 
-        if self.nVersion >= 106:
-            self.addrFrom = CAddress()
-            self.addrFrom.deserialize(f, False)
-            self.nNonce = struct.unpack("<Q", f.read(8))[0]
-            self.strSubVer = deser_string(f)
-        else:
-            self.addrFrom = None
-            self.nNonce = None
-            self.strSubVer = None
-            self.nStartingHeight = None
+        self.addrFrom = CAddress()
+        self.addrFrom.deserialize(f, False)
+        self.nNonce = struct.unpack("<Q", f.read(8))[0]
+        self.strSubVer = deser_string(f)
 
-        if self.nVersion >= 209:
-            self.nStartingHeight = struct.unpack("<i", f.read(4))[0]
-        else:
-            self.nStartingHeight = None
+        self.nStartingHeight = struct.unpack("<i", f.read(4))[0]
 
         if self.nVersion >= 70001:
             # Relay field is optional for version 70001 onwards

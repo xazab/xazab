@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef PRIVATESEND_H
-#define PRIVATESEND_H
+#ifndef BITCOIN_PRIVATESEND_PRIVATESEND_H
+#define BITCOIN_PRIVATESEND_PRIVATESEND_H
 
 #include <bls/bls.h>
 #include <chain.h>
@@ -351,7 +351,7 @@ public:
     bool CheckSignature(const CBLSPublicKey& blsPubKey) const;
 
     void SetConfirmedHeight(int nConfirmedHeightIn) { nConfirmedHeight = nConfirmedHeightIn; }
-    bool IsExpired(const CBlockIndex* pindex);
+    bool IsExpired(const CBlockIndex* pindex) const;
     bool IsValidStructure();
 };
 
@@ -418,8 +418,8 @@ class CPrivateSend
 {
 private:
     // make constructor, destructor and copying not available
-    CPrivateSend() {}
-    ~CPrivateSend() {}
+    CPrivateSend() = default;
+    ~CPrivateSend() = default;
     CPrivateSend(CPrivateSend const&) = delete;
     CPrivateSend& operator=(CPrivateSend const&) = delete;
 
@@ -471,4 +471,4 @@ public:
 
 };
 
-#endif
+#endif // BITCOIN_PRIVATESEND_PRIVATESEND_H

@@ -11,6 +11,7 @@
 #include <validation.h>
 #include <miner.h>
 #include <net_processing.h>
+#include <pow.h>
 #include <ui_interface.h>
 #include <streams.h>
 #include <rpc/server.h>
@@ -23,8 +24,6 @@
 #include <llmq/quorums_init.h>
 #include <privatesend/privatesend.h>
 
-#include <memory>
-
 void CConnmanTest::AddNode(CNode& node)
 {
     LOCK(g_connman->cs_vNodes);
@@ -35,6 +34,9 @@ void CConnmanTest::AddNode(CNode& node)
 void CConnmanTest::ClearNodes()
 {
     LOCK(g_connman->cs_vNodes);
+    for (CNode* node : g_connman->vNodes) {
+        delete node;
+    }
     g_connman->vNodes.clear();
     g_connman->mapSocketToNode.clear();
 
@@ -113,13 +115,13 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         {
             CValidationState state;
             if (!ActivateBestChain(state, chainparams)) {
-                throw std::runtime_error("ActivateBestChain failed.");
+                throw std::runtime_error(strprintf("ActivateBestChain failed. (%s)", FormatStateMessage(state)));
             }
         }
         nScriptCheckThreads = 3;
         for (int i=0; i < nScriptCheckThreads-1; i++)
             threadGroup.create_thread(&ThreadScriptCheck);
-        peerLogic.reset(new PeerLogicValidation(connman, scheduler));
+        peerLogic.reset(new PeerLogicValidation(connman, scheduler, /*enable_bip61=*/true));
 }
 
 TestingSetup::~TestingSetup()
@@ -215,9 +217,9 @@ CBlock TestChainSetup::CreateBlock(const std::vector<CMutableTransaction>& txns,
     }
 
     // IncrementExtraNonce creates a valid coinbase and merkleRoot
-    unsigned int extraNonce = 0;
     {
         LOCK(cs_main);
+        unsigned int extraNonce = 0;
         IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
     }
 

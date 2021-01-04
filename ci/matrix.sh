@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-
+#
 # This script is meant to be sourced into the actual build script. It contains the build matrix and will set all
 # necessary environment variables for the request build target
+
+export LC_ALL=C
 
 export BUILD_TARGET=${BUILD_TARGET:-linux64}
 export PULL_REQUEST=${PULL_REQUEST:-false}
@@ -80,5 +82,5 @@ elif [ "$BUILD_TARGET" = "mac" ]; then
   export HOST=x86_64-apple-darwin14
   export BITCOIN_CONFIG="--enable-gui --enable-reduce-exports --disable-miner"
   export OSX_SDK=10.11
-  export GOAL="deploy"
+  export GOAL="all deploy"
 fi

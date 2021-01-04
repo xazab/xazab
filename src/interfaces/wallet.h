@@ -41,7 +41,7 @@ using WalletOrderForm = std::vector<std::pair<std::string, std::string>>;
 using WalletValueMap = std::map<std::string, std::string>;
 
 namespace PrivateSend {
-//! Interface for the wallet constrained src/privatesend part of a dash node (dashd process).
+//! Interface for the wallet constrained src/privatesend part of a xazab node (xazabd process).
 class Client
 {
 public:

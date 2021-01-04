@@ -1,4 +1,4 @@
-// Copyright (c) 2015 The Bitcoin Core developers
+// Copyright (c) 2015-2018 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -29,6 +29,15 @@ CZMQNotificationInterface::~CZMQNotificationInterface()
     }
 }
 
+std::list<const CZMQAbstractNotifier*> CZMQNotificationInterface::GetActiveNotifiers() const
+{
+    std::list<const CZMQAbstractNotifier*> result;
+    for (const auto* n : notifiers) {
+        result.push_back(n);
+    }
+    return result;
+}
+
 CZMQNotificationInterface* CZMQNotificationInterface::Create()
 {
     CZMQNotificationInterface* notificationInterface = nullptr;
@@ -42,6 +51,7 @@ CZMQNotificationInterface* CZMQNotificationInterface::Create()
     factories["pubhashgovernancevote"] = CZMQAbstractNotifier::Create<CZMQPublishHashGovernanceVoteNotifier>;
     factories["pubhashgovernanceobject"] = CZMQAbstractNotifier::Create<CZMQPublishHashGovernanceObjectNotifier>;
     factories["pubhashinstantsenddoublespend"] = CZMQAbstractNotifier::Create<CZMQPublishHashInstantSendDoubleSpendNotifier>;
+    factories["pubhashrecoveredsig"] = CZMQAbstractNotifier::Create<CZMQPublishHashRecoveredSigNotifier>;
     factories["pubrawblock"] = CZMQAbstractNotifier::Create<CZMQPublishRawBlockNotifier>;
     factories["pubrawchainlock"] = CZMQAbstractNotifier::Create<CZMQPublishRawChainLockNotifier>;
     factories["pubrawchainlocksig"] = CZMQAbstractNotifier::Create<CZMQPublishRawChainLockSigNotifier>;
@@ -51,6 +61,7 @@ CZMQNotificationInterface* CZMQNotificationInterface::Create()
     factories["pubrawgovernancevote"] = CZMQAbstractNotifier::Create<CZMQPublishRawGovernanceVoteNotifier>;
     factories["pubrawgovernanceobject"] = CZMQAbstractNotifier::Create<CZMQPublishRawGovernanceObjectNotifier>;
     factories["pubrawinstantsenddoublespend"] = CZMQAbstractNotifier::Create<CZMQPublishRawInstantSendDoubleSpendNotifier>;
+    factories["pubrawrecoveredsig"] = CZMQAbstractNotifier::Create<CZMQPublishRawRecoveredSigNotifier>;
 
     for (const auto& entry : factories)
     {
@@ -273,3 +284,18 @@ void CZMQNotificationInterface::NotifyInstantSendDoubleSpendAttempt(const CTrans
         }
     }
 }
+
+void CZMQNotificationInterface::NotifyRecoveredSig(const llmq::CRecoveredSig& sig)
+{
+    for (auto it = notifiers.begin(); it != notifiers.end();) {
+        CZMQAbstractNotifier *notifier = *it;
+        if (notifier->NotifyRecoveredSig(sig)) {
+            ++it;
+        } else {
+            notifier->Shutdown();
+            it = notifiers.erase(it);
+        }
+    }
+}
+
+CZMQNotificationInterface* g_zmq_notification_interface = nullptr;

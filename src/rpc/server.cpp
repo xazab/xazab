@@ -25,10 +25,10 @@
 #include <memory> // for unique_ptr
 #include <unordered_map>
 
-static bool fRPCRunning = false;
-static bool fRPCInWarmup = true;
-static std::string rpcWarmupStatus("RPC server started");
 static CCriticalSection cs_rpcWarmup;
+static bool fRPCRunning = false;
+static bool fRPCInWarmup GUARDED_BY(cs_rpcWarmup) = true;
+static std::string rpcWarmupStatus GUARDED_BY(cs_rpcWarmup) = "RPC server started";
 /* Timer-creating functions */
 static RPCTimerInterface* timerInterface = nullptr;
 /* Map of name to timer. */
@@ -62,12 +62,11 @@ void RPCServer::OnStopped(std::function<void ()> slot)
 }
 
 void RPCTypeCheck(const UniValue& params,
-                  const std::list<UniValue::VType>& typesExpected,
+                  const std::list<UniValueType>& typesExpected,
                   bool fAllowNull)
 {
     unsigned int i = 0;
-    for (UniValue::VType t : typesExpected)
-    {
+    for (const UniValueType& t : typesExpected) {
         if (params.size() <= i)
             break;
 
@@ -79,10 +78,10 @@ void RPCTypeCheck(const UniValue& params,
     }
 }
 
-void RPCTypeCheckArgument(const UniValue& value, UniValue::VType typeExpected)
+void RPCTypeCheckArgument(const UniValue& value, const UniValueType& typeExpected)
 {
-    if (value.type() != typeExpected) {
-        throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Expected type %s, got %s", uvTypeName(typeExpected), uvTypeName(value.type())));
+    if (!typeExpected.typeAny && value.type() != typeExpected.type) {
+        throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Expected type %s, got %s", uvTypeName(typeExpected.type), uvTypeName(value.type())));
     }
 }
 
@@ -441,7 +440,11 @@ void JSONRPCRequest::parse(const UniValue& valRequest)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
     if (strMethod != "getblocktemplate") {
-        LogPrint(BCLog::RPC, "ThreadRPCServer method=%s\n", SanitizeString(strMethod));
+        if (fLogIPs)
+            LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s peeraddr=%s\n", SanitizeString(strMethod),
+                this->authUser, this->peerAddr);
+        else
+            LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s\n", SanitizeString(strMethod), this->authUser);
     }
 
     // Parse params

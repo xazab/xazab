@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2020 The Xazab Core developers
+// Copyright (c) 2018-2020 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef XAZAB_QUORUMS_DKGSESSION_H
-#define XAZAB_QUORUMS_DKGSESSION_H
+#ifndef BITCOIN_LLMQ_QUORUMS_DKGSESSION_H
+#define BITCOIN_LLMQ_QUORUMS_DKGSESSION_H
 
 #include <consensus/params.h>
 #include <net.h>
@@ -96,7 +96,7 @@ public:
     CBLSSignature sig;
 
 public:
-    CDKGComplaint() {}
+    CDKGComplaint() = default;
     explicit CDKGComplaint(const Consensus::LLMQParams& params);
 
     ADD_SERIALIZE_METHODS
@@ -169,7 +169,7 @@ public:
     CBLSSignature sig; // single member sig of quorumHash+validMembers+pubKeyHash+vvecHash
 
 public:
-    CDKGPrematureCommitment() {}
+    CDKGPrematureCommitment() = default;
     explicit CDKGPrematureCommitment(const Consensus::LLMQParams& params);
 
     int CountValidMembers() const
@@ -349,4 +349,4 @@ void SetSimulatedDKGErrorRate(const std::string& type, double rate);
 
 } // namespace llmq
 
-#endif //XAZAB_QUORUMS_DKGSESSION_H
+#endif // BITCOIN_LLMQ_QUORUMS_DKGSESSION_H

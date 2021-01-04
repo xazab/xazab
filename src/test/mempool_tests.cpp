@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(MempoolRemoveTest)
     poolSize = testPool.size();
     testPool.removeRecursive(txParent);
     BOOST_CHECK_EQUAL(testPool.size(), poolSize - 1);
-    
+
     // Parent, children, grandchildren:
     testPool.addUnchecked(txParent.GetHash(), entry.FromTx(txParent));
     for (int i = 0; i < 3; i++)
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(MempoolRemoveTest)
 }
 
 template<typename name>
-void CheckSort(CTxMemPool &pool, std::vector<std::string> &sortedOrder)
+void CheckSort(CTxMemPool &pool, std::vector<std::string> &sortedOrder) EXCLUSIVE_LOCKS_REQUIRED(pool.cs)
 {
     BOOST_CHECK_EQUAL(pool.size(), sortedOrder.size());
     typename CTxMemPool::indexed_transaction_set::index<name>::type::iterator it = pool.mapTx.get<name>().begin();
@@ -522,7 +522,7 @@ BOOST_AUTO_TEST_CASE(MempoolSizeLimitTest)
     pool.addUnchecked(tx6.GetHash(), entry.Fee(1100LL).FromTx(tx6));
     pool.addUnchecked(tx7.GetHash(), entry.Fee(9000LL).FromTx(tx7));
 
-    // we only require this remove, at max, 2 txn, because its not clear what we're really optimizing for aside from that
+    // we only require this to remove, at max, 2 txn, because it's not clear what we're really optimizing for aside from that
     pool.TrimToSize(pool.DynamicMemoryUsage() - 1);
     BOOST_CHECK(pool.exists(tx4.GetHash()));
     BOOST_CHECK(pool.exists(tx6.GetHash()));

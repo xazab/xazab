@@ -21,6 +21,7 @@ enum DeploymentPos
     DEPLOYMENT_DIP0003, // Deployment of DIP0002 and DIP0003 (txv3 and deterministic MN lists)
     DEPLOYMENT_DIP0008, // Deployment of ChainLock enforcement
     DEPLOYMENT_REALLOC, // Deployment of Block Reward Reallocation
+    DEPLOYMENT_V17, // Deployment of V17 Hard Fork
     // NOTE: Also add new deployments to VersionBitsDeploymentInfo in versionbits.cpp
     MAX_VERSION_BITS_DEPLOYMENTS
 };
@@ -120,7 +121,7 @@ struct LLMQParams {
     // Number of quorums to consider "active" for signing sessions
     int signingActiveQuorumCount;
 
-    // Used for inter-quorum communication. This is the number of quorums for which we should keep old connections. This
+    // Used for intra-quorum communication. This is the number of quorums for which we should keep old connections. This
     // should be at least one more then the active quorums set.
     int keepOldConnections;
 
@@ -163,6 +164,8 @@ struct Params {
     /** Block height at which DIP0003 becomes enforced */
     int DIP0003EnforcementHeight;
     uint256 DIP0003EnforcementHash;
+    /** Block height at which DIP0008 becomes active */
+    int DIP0008Height;
     /**
      * Minimum blocks including miner confirmation of the total of nMinerConfirmationWindow blocks in a retargeting period,
      * (nPowTargetTimespan / nPowTargetSpacing) which is also used for BIP9 deployments.

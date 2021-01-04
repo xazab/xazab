@@ -24,7 +24,7 @@
 
 CPrivateSendServer privateSendServer;
 
-void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
+void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman, bool enable_bip61)
 {
     if (!fMasternodeMode) return;
     if (!masternodeSync.IsBlockchainSynced()) return;
@@ -32,7 +32,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
     if (strCommand == NetMsgType::DSACCEPT) {
         if (pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrint(BCLog::PRIVATESEND, "DSACCEPT -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
-            if (g_enable_bip61) {
+            if (enable_bip61) {
                 connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
                                                                                       REJECT_OBSOLETE, strprintf(
                                 "Version must be %d or greater", MIN_PRIVATESEND_PEER_PROTO_VERSION)));
@@ -51,7 +51,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
         CPrivateSendAccept dsa;
         vRecv >> dsa;
 
-        LogPrint(BCLog::PRIVATESEND, "DSACCEPT -- nDenom %d (%s)  txCollateral %s", dsa.nDenom, CPrivateSend::DenominationToString(dsa.nDenom), dsa.txCollateral.ToString());
+        LogPrint(BCLog::PRIVATESEND, "DSACCEPT -- nDenom %d (%s)  txCollateral %s", dsa.nDenom, CPrivateSend::DenominationToString(dsa.nDenom), dsa.txCollateral.ToString()); /* Continued */
 
         auto mnList = deterministicMNManager->GetListAtChainTip();
         auto dmn = mnList.GetValidMNByCollateral(activeMasternodeInfo.outpoint);
@@ -105,7 +105,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
     } else if (strCommand == NetMsgType::DSQUEUE) {
         if (pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrint(BCLog::PRIVATESEND, "DSQUEUE -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
-            if (g_enable_bip61) {
+            if (enable_bip61) {
                 connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
                                                                                       REJECT_OBSOLETE, strprintf(
                                 "Version must be %d or greater", MIN_PRIVATESEND_PEER_PROTO_VERSION)));
@@ -169,7 +169,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
     } else if (strCommand == NetMsgType::DSVIN) {
         if (pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrint(BCLog::PRIVATESEND, "DSVIN -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
-            if (g_enable_bip61) {
+            if (enable_bip61) {
                 connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
                                                                                       REJECT_OBSOLETE, strprintf(
                                 "Version must be %d or greater", MIN_PRIVATESEND_PEER_PROTO_VERSION)));
@@ -188,7 +188,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
         CPrivateSendEntry entry;
         vRecv >> entry;
 
-        LogPrint(BCLog::PRIVATESEND, "DSVIN -- txCollateral %s", entry.txCollateral->ToString());
+        LogPrint(BCLog::PRIVATESEND, "DSVIN -- txCollateral %s", entry.txCollateral->ToString()); /* Continued */
 
         PoolMessage nMessageID = MSG_NOERR;
 
@@ -204,7 +204,7 @@ void CPrivateSendServer::ProcessMessage(CNode* pfrom, const std::string& strComm
     } else if (strCommand == NetMsgType::DSSIGNFINALTX) {
         if (pfrom->nVersion < MIN_PRIVATESEND_PEER_PROTO_VERSION) {
             LogPrint(BCLog::PRIVATESEND, "DSSIGNFINALTX -- peer=%d using obsolete version %i\n", pfrom->GetId(), pfrom->nVersion);
-            if (g_enable_bip61) {
+            if (enable_bip61) {
                 connman.PushMessage(pfrom, CNetMsgMaker(pfrom->GetSendVersion()).Make(NetMsgType::REJECT, strCommand,
                                                                                       REJECT_OBSOLETE, strprintf(
                                 "Version must be %d or greater", MIN_PRIVATESEND_PEER_PROTO_VERSION)));
@@ -298,7 +298,7 @@ void CPrivateSendServer::CreateFinalTransaction(CConnman& connman)
     sort(txNew.vout.begin(), txNew.vout.end(), CompareOutputBIP69());
 
     finalMutableTransaction = txNew;
-    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CreateFinalTransaction -- finalMutableTransaction=%s", txNew.ToString());
+    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CreateFinalTransaction -- finalMutableTransaction=%s", txNew.ToString()); /* Continued */
 
     // request signatures from clients
     SetState(POOL_STATE_SIGNING);
@@ -312,7 +312,7 @@ void CPrivateSendServer::CommitFinalTransaction(CConnman& connman)
     CTransactionRef finalTransaction = MakeTransactionRef(finalMutableTransaction);
     uint256 hashTx = finalTransaction->GetHash();
 
-    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CommitFinalTransaction -- finalTransaction=%s", finalTransaction->ToString());
+    LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CommitFinalTransaction -- finalTransaction=%s", finalTransaction->ToString()); /* Continued */
 
     {
         // See if the transaction is valid
@@ -417,7 +417,7 @@ void CPrivateSendServer::ChargeFees(CConnman& connman)
     std::random_shuffle(vecOffendersCollaterals.begin(), vecOffendersCollaterals.end());
 
     if (nState == POOL_STATE_ACCEPTING_ENTRIES || nState == POOL_STATE_SIGNING) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s",
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::ChargeFees -- found uncooperative node (didn't %s transaction), charging fees: %s", /* Continued */
             (nState == POOL_STATE_SIGNING) ? "sign" : "send", vecOffendersCollaterals[0]->ToString());
         ConsumeCollateral(connman, vecOffendersCollaterals[0]);
     }
@@ -441,7 +441,7 @@ void CPrivateSendServer::ChargeRandomFees(CConnman& connman)
 
     for (const auto& txCollateral : vecSessionCollaterals) {
         if (GetRandInt(100) > 10) return;
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::ChargeRandomFees -- charging random fees, txCollateral=%s", txCollateral->ToString());
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::ChargeRandomFees -- charging random fees, txCollateral=%s", txCollateral->ToString()); /* Continued */
         ConsumeCollateral(connman, txCollateral);
     }
 }
@@ -500,7 +500,7 @@ void CPrivateSendServer::CheckForCompleteQueue(CConnman& connman)
         SetState(POOL_STATE_ACCEPTING_ENTRIES);
 
         CPrivateSendQueue dsq(nSessionDenom, activeMasternodeInfo.outpoint, GetAdjustedTime(), true);
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CheckForCompleteQueue -- queue is ready, signing and relaying (%s) "
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSendServer::CheckForCompleteQueue -- queue is ready, signing and relaying (%s) " /* Continued */
                                      "with %d participants\n", dsq.ToString(), vecSessionCollaterals.size());
         dsq.Sign();
         dsq.Relay(connman);
@@ -882,8 +882,8 @@ void CPrivateSendServer::GetJsonInfo(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
-    obj.push_back(Pair("queue_size",    GetQueueSize()));
-    obj.push_back(Pair("denomination",  ValueFromAmount(CPrivateSend::DenominationToAmount(nSessionDenom))));
-    obj.push_back(Pair("state",         GetStateString()));
-    obj.push_back(Pair("entries_count", GetEntriesCount()));
+    obj.pushKV("queue_size",    GetQueueSize());
+    obj.pushKV("denomination",  ValueFromAmount(CPrivateSend::DenominationToAmount(nSessionDenom)));
+    obj.pushKV("state",         GetStateString());
+    obj.pushKV("entries_count", GetEntriesCount());
 }

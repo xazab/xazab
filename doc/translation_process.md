@@ -53,7 +53,7 @@ The client it used to fetch updated translations. If you are having problems, or
 
 `pip install transifex-client`
 
-Setup your transifex client config as follows. Please *ignore the token field*.
+Setup your Transifex client config as follows. Please *ignore the token field*.
 
 ```ini
 nano ~/.transifexrc
@@ -69,7 +69,7 @@ username = USERNAME
 
 Please see [http://docs.transifex.com/developer/client/setup#windows](http://docs.transifex.com/developer/client/setup#windows) for details on installation.
 
-The Transifex Xazab project config file is included as part of the repo. It can be found at `.tx/config`, however you shouldn’t need change anything.
+The Transifex Xazab project config file is included as part of the repo. It can be found at `.tx/config`, however you shouldn’t need to change anything.
 
 ### Synchronising translations
 To assist in updating translations, we have created a script to help.
@@ -107,4 +107,4 @@ To create a new language template, you will need to edit the languages manifest 
 **Note:** that the language translation file **must end in `.qm`** (the compiled extension), and not `.ts`.
 
 ### Questions and general assistance
-Check official forum at [https://www.xazab.org/forum/topic/xazab-worldwide-collaboration.88/](https://www.xazab.org/forum/topic/xazab-worldwide-collaboration.88/).
+Check official forum at [https://xazab.xyz/forum/topic/xazab-worldwide-collaboration.88/](https://xazab.xyz/forum/topic/xazab-worldwide-collaboration.88/).

@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020 The Xazab Core developers
+// Copyright (c) 2019-2020 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -8,7 +8,6 @@
 
 #include <bls/bls_batchverifier.h>
 #include <chainparams.h>
-#include <coins.h>
 #include <txmempool.h>
 #include <masternode/masternode-sync.h>
 #include <net_processing.h>
@@ -22,7 +21,6 @@
 #include <cxxtimer.hpp>
 
 #include <boost/algorithm/string/replace.hpp>
-#include <boost/thread.hpp>
 
 namespace llmq
 {
@@ -228,7 +226,7 @@ uint256 CInstantSendDb::GetInstantSendLockHashByTxid(const uint256& txid)
 
     bool found = txidCache.get(txid, islockHash);
     if (found && islockHash.IsNull()) {
-        return uint256();
+        return {};
     }
 
     if (!found) {
@@ -237,7 +235,7 @@ uint256 CInstantSendDb::GetInstantSendLockHashByTxid(const uint256& txid)
     }
 
     if (!found) {
-        return uint256();
+        return {};
     }
     return islockHash;
 }
@@ -345,9 +343,7 @@ CInstantSendManager::CInstantSendManager(CDBWrapper& _llmqDb) :
     workInterrupt.reset();
 }
 
-CInstantSendManager::~CInstantSendManager()
-{
-}
+CInstantSendManager::~CInstantSendManager() = default;
 
 void CInstantSendManager::Start()
 {
@@ -356,7 +352,7 @@ void CInstantSendManager::Start()
         assert(false);
     }
 
-    workThread = std::thread(&TraceThread<std::function<void()> >, "instantsend", std::function<void()>(std::bind(&CInstantSendManager::WorkThreadMain, this)));
+    workThread = std::thread(&TraceThread<std::function<void()> >, "isman", std::function<void()>(std::bind(&CInstantSendManager::WorkThreadMain, this)));
 
     quorumSigningManager->RegisterRecoveredSigsListener(this);
 }
@@ -710,7 +706,7 @@ void CInstantSendManager::ProcessMessageInstantSendLock(CNode* pfrom, const llmq
     LogPrint(BCLog::INSTANTSEND, "CInstantSendManager::%s -- txid=%s, islock=%s: received islock, peer=%d\n", __func__,
             islock.txid.ToString(), hash.ToString(), pfrom->GetId());
 
-    pendingInstantSendLocks.emplace(hash, std::make_pair(pfrom->GetId(), std::move(islock)));
+    pendingInstantSendLocks.emplace(hash, std::make_pair(pfrom->GetId(), islock));
 }
 
 bool CInstantSendManager::PreVerifyInstantSendLock(NodeId nodeId, const llmq::CInstantSendLock& islock, bool& retBan)
@@ -1155,8 +1151,7 @@ void CInstantSendManager::NotifyChainLock(const CBlockIndex* pindexChainLock)
 
 void CInstantSendManager::UpdatedBlockTip(const CBlockIndex* pindexNew)
 {
-    // TODO remove this after DIP8 has activated
-    bool fDIP0008Active = VersionBitsState(pindexNew->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0008, versionbitscache) == THRESHOLD_ACTIVE;
+    bool fDIP0008Active = pindexNew->pprev && pindexNew->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
 
     if (AreChainLocksEnabled() && fDIP0008Active) {
         // Nothing to do here. We should keep all islocks and let chainlocks handle them.

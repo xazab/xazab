@@ -85,12 +85,12 @@ static int AppInitRawTx(int argc, char* argv[])
         strUsage += HelpMessageOpt("locktime=N", _("Set TX lock time to N"));
         strUsage += HelpMessageOpt("nversion=N", _("Set TX version to N"));
         strUsage += HelpMessageOpt("outaddr=VALUE:ADDRESS", _("Add address-based output to TX"));
+        strUsage += HelpMessageOpt("outdata=[VALUE:]DATA", _("Add data-based output to TX"));
+        strUsage += HelpMessageOpt("outmultisig=VALUE:REQUIRED:PUBKEYS:PUBKEY1:PUBKEY2:....[:FLAGS]", _("Add Pay To n-of-m Multi-sig output to TX. n = REQUIRED, m = PUBKEYS") + ". " +
+            _("Optionally add the \"S\" flag to wrap the output in a pay-to-script-hash."));
         strUsage += HelpMessageOpt("outpubkey=VALUE:PUBKEY[:FLAGS]", _("Add pay-to-pubkey output to TX") + ". " +
             _("Optionally add the \"S\" flag to wrap the output in a pay-to-script-hash."));
-        strUsage += HelpMessageOpt("outdata=[VALUE:]DATA", _("Add data-based output to TX"));
         strUsage += HelpMessageOpt("outscript=VALUE:SCRIPT[:FLAGS]", _("Add raw script output to TX") + ". " +
-            _("Optionally add the \"S\" flag to wrap the output in a pay-to-script-hash."));
-        strUsage += HelpMessageOpt("outmultisig=VALUE:REQUIRED:PUBKEYS:PUBKEY1:PUBKEY2:....[:FLAGS]", _("Add Pay To n-of-m Multi-sig output to TX. n = REQUIRED, m = PUBKEYS") + ". " +
             _("Optionally add the \"S\" flag to wrap the output in a pay-to-script-hash."));
         strUsage += HelpMessageOpt("sign=SIGHASH-FLAGS", _("Add zero or more signatures to transaction") + ". " +
             _("This command requires JSON registers:") +
@@ -501,9 +501,6 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
         if (!findSighashFlags(nHashType, flagStr))
             throw std::runtime_error("unknown sighash flag/sign option");
 
-    std::vector<CTransaction> txVariants;
-    txVariants.push_back(tx);
-
     // mergedTx will end up with all the signatures; it
     // starts as a clone of the raw tx:
     CMutableTransaction mergedTx{tx};
@@ -546,7 +543,7 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
             if (!prevOut.checkObject(types))
                 throw std::runtime_error("prevtxs internal object typecheck fail");
 
-            uint256 txid = ParseHashUV(prevOut["txid"], "txid");
+            uint256 txid = ParseHashStr(prevOut["txid"].get_str(), "txid");
 
             const int nOut = prevOut["vout"].get_int();
             if (nOut < 0)
@@ -592,7 +589,7 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
 
     // Sign what we can:
     for (unsigned int i = 0; i < mergedTx.vin.size(); i++) {
-        CTxIn& txin = mergedTx.vin[i];
+        const CTxIn& txin = mergedTx.vin[i];
         const Coin& coin = view.AccessCoin(txin.prevout);
         if (coin.IsSpent()) {
             continue;
@@ -606,8 +603,7 @@ static void MutateTxSign(CMutableTransaction& tx, const std::string& flagStr)
             ProduceSignature(MutableTransactionSignatureCreator(&keystore, &mergedTx, i, amount, nHashType), prevPubKey, sigdata);
 
         // ... and merge in other signatures:
-        for (const CTransaction& txv : txVariants)
-            sigdata = CombineSignatures(prevPubKey, MutableTransactionSignatureChecker(&mergedTx, i, amount), sigdata, DataFromTransaction(txv, i));
+        sigdata = CombineSignatures(prevPubKey, MutableTransactionSignatureChecker(&mergedTx, i, amount), sigdata, DataFromTransaction(txv, i));
         UpdateTransaction(mergedTx, i, sigdata);
     }
 

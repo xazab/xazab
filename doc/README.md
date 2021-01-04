@@ -1,7 +1,7 @@
 Xazab Core
 ==========
 
-This is the official reference wallet for Xazab digital currency and comprises the backbone of the Xazab peer-to-peer network. You can [download Xazab Core](https://www.xazab.org/downloads/) or [build it yourself](#building) using the guides below.
+This is the official reference wallet for Xazab digital currency and comprises the backbone of the Xazab peer-to-peer network. You can [download Xazab Core](https://xazab.xyz/downloads/) or [build it yourself](#building) using the guides below.
 
 Running
 ---------------------

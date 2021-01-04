@@ -63,6 +63,12 @@ inline T* NCONST_PTR(const T* val)
     return const_cast<T*>(val);
 }
 
+//! Safely convert odd char pointer types to standard ones.
+inline char* CharCast(char* c) { return c; }
+inline char* CharCast(unsigned char* c) { return (char*)c; }
+inline const char* CharCast(const char* c) { return c; }
+inline const char* CharCast(const unsigned char* c) { return (const char*)c; }
+
 /*
  * Lowest-level serialization and conversion.
  * @note Sizes of these types are verified in the tests
@@ -181,11 +187,11 @@ template<typename X> const X& ReadWriteAsHelper(const X& x) { return x; }
 #define READWRITE(...) (::SerReadWriteMany(s, ser_action, __VA_ARGS__))
 #define READWRITEAS(type, obj) (::SerReadWriteMany(s, ser_action, ReadWriteAsHelper<type>(obj)))
 
-/** 
+/**
  * Implement three methods for serializable objects. These are actually wrappers over
  * "SerializationOp" template, which implements the body of each class' serialization
  * code. Adding "ADD_SERIALIZE_METHODS" in the body of the class causes these wrappers to be
- * added as members. 
+ * added as members.
  */
 #define ADD_SERIALIZE_METHODS                                         \
     template<typename Stream>                                         \
@@ -197,7 +203,9 @@ template<typename X> const X& ReadWriteAsHelper(const X& x) { return x; }
         SerializationOp(s, CSerActionUnserialize());                  \
     }
 
+#ifndef CHAR_EQUALS_INT8
 template<typename Stream> inline void Serialize(Stream& s, char a    ) { ser_writedata8(s, a); } // TODO Get rid of bare char
+#endif
 template<typename Stream> inline void Serialize(Stream& s, int8_t a  ) { ser_writedata8(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, uint8_t a ) { ser_writedata8(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, int16_t a ) { ser_writedata16(s, a); }
@@ -213,7 +221,9 @@ template<typename Stream, int N> inline void Serialize(Stream& s, const unsigned
 template<typename Stream> inline void Serialize(Stream& s, const Span<const unsigned char>& span) { s.write(CharCast(span.data()), span.size()); }
 template<typename Stream> inline void Serialize(Stream& s, const Span<unsigned char>& span) { s.write(CharCast(span.data()), span.size()); }
 
+#ifndef CHAR_EQUALS_INT8
 template<typename Stream> inline void Unserialize(Stream& s, char& a    ) { a = ser_readdata8(s); } // TODO Get rid of bare char
+#endif
 template<typename Stream> inline void Unserialize(Stream& s, int8_t& a  ) { a = ser_readdata8(s); }
 template<typename Stream> inline void Unserialize(Stream& s, uint8_t& a ) { a = ser_readdata8(s); }
 template<typename Stream> inline void Unserialize(Stream& s, int16_t& a ) { a = ser_readdata16(s); }
@@ -318,16 +328,16 @@ uint64_t ReadCompactSize(Stream& is)
  * sure the encoding is one-to-one, one is subtracted from all but the last digit.
  * Thus, the byte sequence a[] with length len, where all but the last byte
  * has bit 128 set, encodes the number:
- * 
+ *
  *  (a[len-1] & 0x7F) + sum(i=1..len-1, 128^i*((a[len-i-1] & 0x7F)+1))
- * 
+ *
  * Properties:
  * * Very small (0-127: 1 byte, 128-16511: 2 bytes, 16512-2113663: 3 bytes)
  * * Every integer has exactly one encoding
  * * Encoding does not depend on size of original integer type
  * * No redundancy: every (infinite) byte sequence corresponds to a list
  *   of encoded integers.
- * 
+ *
  * 0:         [0x00]  256:        [0x81 0x00]
  * 1:         [0x01]  16383:      [0xFE 0x7F]
  * 127:       [0x7F]  16384:      [0xFF 0x00]
@@ -421,47 +431,6 @@ I ReadVarInt(Stream& is)
 #define VARINT(obj, ...) WrapVarInt<__VA_ARGS__>(REF(obj))
 #define COMPACTSIZE(obj) CCompactSize(REF(obj))
 #define LIMITED_STRING(obj,n) LimitedString< n >(REF(obj))
-
-<<<<<<< HEAD
-/** 
- * Wrapper for serializing arrays and POD.
- */
-class CFlatData
-{
-protected:
-    char* pbegin;
-    char* pend;
-public:
-    CFlatData(void* pbeginIn, void* pendIn) : pbegin((char*)pbeginIn), pend((char*)pendIn) { }
-    template <class T, class TAl>
-    explicit CFlatData(std::vector<T,TAl> &v)
-    {
-        pbegin = (char*)v.data();
-        pend = (char*)(v.data() + v.size());
-    }
-    template <unsigned int N, typename T, typename S, typename D>
-    explicit CFlatData(prevector<N, T, S, D> &v)
-    {
-        pbegin = (char*)v.data();
-        pend = (char*)(v.data() + v.size());
-    }
-    char* begin() { return pbegin; }
-    const char* begin() const { return pbegin; }
-    char* end() { return pend; }
-    const char* end() const { return pend; }
-
-    template<typename Stream>
-    void Serialize(Stream& s) const
-    {
-        s.write(pbegin, pend - pbegin);
-    }
-
-    template<typename Stream>
-    void Unserialize(Stream& s)
-    {
-        s.read(pbegin, pend - pbegin);
-    }
-};
 
 class CFixedBitSet
 {

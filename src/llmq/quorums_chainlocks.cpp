@@ -1,11 +1,9 @@
-// Copyright (c) 2019 The Xazab Core developers
+// Copyright (c) 2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include <llmq/quorums.h>
 #include <llmq/quorums_chainlocks.h>
 #include <llmq/quorums_instantsend.h>
-#include <llmq/quorums_signing.h>
 #include <llmq/quorums_utils.h>
 
 #include <chain.h>
@@ -37,7 +35,7 @@ CChainLocksHandler::CChainLocksHandler()
 {
     scheduler = new CScheduler();
     CScheduler::Function serviceLoop = boost::bind(&CScheduler::serviceQueue, scheduler);
-    scheduler_thread = new boost::thread(boost::bind(&TraceThread<CScheduler::Function>, "cl-scheduler", serviceLoop));
+    scheduler_thread = new boost::thread(boost::bind(&TraceThread<CScheduler::Function>, "cl-schdlr", serviceLoop));
 }
 
 CChainLocksHandler::~CChainLocksHandler()
@@ -54,7 +52,7 @@ void CChainLocksHandler::Start()
     scheduler->scheduleEvery([&]() {
         CheckActiveState();
         EnforceBestChainLock();
-        // regularly retry signing the current chaintip as it might have failed before due to missing ixlocks
+        // regularly retry signing the current chaintip as it might have failed before due to missing islocks
         TrySignChainTip();
     }, 5000);
 }
@@ -226,7 +224,7 @@ void CChainLocksHandler::CheckActiveState()
     bool fDIP0008Active;
     {
         LOCK(cs_main);
-        fDIP0008Active = chainActive.Tip() && VersionBitsState(chainActive.Tip()->pprev, Params().GetConsensus(), Consensus::DEPLOYMENT_DIP0008, versionbitscache) == THRESHOLD_ACTIVE;
+        fDIP0008Active = chainActive.Tip() && chainActive.Tip()->pprev && chainActive.Tip()->pprev->nHeight >= Params().GetConsensus().DIP0008Height;
     }
 
     LOCK(cs);
@@ -298,7 +296,7 @@ void CChainLocksHandler::TrySignChainTip()
     LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- trying to sign %s, height=%d\n", __func__, pindex->GetBlockHash().ToString(), pindex->nHeight);
 
     // When the new IX system is activated, we only try to ChainLock blocks which include safe transactions. A TX is
-    // considered safe when it is ixlocked or at least known since 10 minutes (from mempool or block). These checks are
+    // considered safe when it is islocked or at least known since 10 minutes (from mempool or block). These checks are
     // performed for the tip (which we try to sign) and the previous 5 blocks. If a ChainLocked block is found on the
     // way down, we consider all TXs to be safe.
     if (IsInstantSendEnabled() && RejectConflictingBlocks()) {
@@ -306,12 +304,12 @@ void CChainLocksHandler::TrySignChainTip()
         while (pindexWalk) {
             if (pindex->nHeight - pindexWalk->nHeight > 5) {
                 // no need to check further down, 6 confs is safe to assume that TXs below this height won't be
-                // ixlocked anymore if they aren't already
+                // islocked anymore if they aren't already
                 LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- tip and previous 5 blocks all safe\n", __func__);
                 break;
             }
             if (HasChainLock(pindexWalk->nHeight, pindexWalk->GetBlockHash())) {
-                // we don't care about ixlocks for TXs that are ChainLocked already
+                // we don't care about islocks for TXs that are ChainLocked already
                 LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- chainlock at height %d \n", __func__, pindexWalk->nHeight);
                 break;
             }
@@ -333,7 +331,7 @@ void CChainLocksHandler::TrySignChainTip()
                 }
 
                 if (txAge < WAIT_FOR_ISLOCK_TIMEOUT && !quorumInstantSendManager->IsLocked(txid)) {
-                    LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- not signing block %s due to TX %s not being ixlocked and not old enough. age=%d\n", __func__,
+                    LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- not signing block %s due to TX %s not being islocked and not old enough. age=%d\n", __func__,
                               pindexWalk->GetBlockHash().ToString(), txid.ToString(), txAge);
                     return;
                 }

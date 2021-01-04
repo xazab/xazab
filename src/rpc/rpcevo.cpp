@@ -7,7 +7,6 @@
 #include <core_io.h>
 #include <init.h>
 #include <messagesigner.h>
-#include <rpc/safemode.h>
 #include <rpc/server.h>
 #include <txmempool.h>
 #include <utilmoneystr.h>
@@ -28,7 +27,7 @@
 
 #include <bls/bls.h>
 
-#include "masternode/masternode-meta.h"
+#include <masternode/masternode-meta.h>
 
 #ifdef ENABLE_WALLET
 extern UniValue signrawtransaction(const JSONRPCRequest& request);
@@ -207,18 +206,18 @@ static void FundSpecialTx(CWallet* pwallet, CMutableTransaction& tx, const Speci
         throw JSONRPCError(RPC_INTERNAL_ERROR, strprintf("No funds at specified address %s", EncodeDestination(fundDest)));
     }
 
-    CWalletTx wtx;
+    CTransactionRef newTx;
     CReserveKey reservekey(pwallet);
     CAmount nFee;
     int nChangePos = -1;
     std::string strFailReason;
 
-    if (!pwallet->CreateTransaction(vecSend, wtx, reservekey, nFee, nChangePos, strFailReason, coinControl, false, tx.vExtraPayload.size())) {
+    if (!pwallet->CreateTransaction(vecSend, newTx, reservekey, nFee, nChangePos, strFailReason, coinControl, false, tx.vExtraPayload.size())) {
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
     }
 
-    tx.vin = wtx.tx->vin;
-    tx.vout = wtx.tx->vout;
+    tx.vin = newTx->vin;
+    tx.vout = newTx->vout;
 
     if (dummyTxOutAdded && tx.vout.size() > 1) {
         // CreateTransaction added a change output, so we don't need the dummy txout anymore.
@@ -416,8 +415,6 @@ UniValue protx_register(const JSONRPCRequest& request)
         protx_register_prepare_help();
     }
 
-    ObserveSafeMode();
-
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
@@ -547,9 +544,9 @@ UniValue protx_register(const JSONRPCRequest& request)
             SetTxPayload(tx, ptx);
 
             UniValue ret(UniValue::VOBJ);
-            ret.push_back(Pair("tx", EncodeHexTx(tx)));
-            ret.push_back(Pair("collateralAddress", EncodeDestination(txDest)));
-            ret.push_back(Pair("signMessage", ptx.MakeSignString()));
+            ret.pushKV("tx", EncodeHexTx(tx));
+            ret.pushKV("collateralAddress", EncodeDestination(txDest));
+            ret.pushKV("signMessage", ptx.MakeSignString());
             return ret;
         } else {
             // lets prove we own the collateral
@@ -570,8 +567,6 @@ UniValue protx_register_submit(const JSONRPCRequest& request)
     if (request.fHelp || request.params.size() != 3) {
         protx_register_submit_help(pwallet);
     }
-
-    ObserveSafeMode();
 
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
@@ -625,8 +620,6 @@ UniValue protx_update_service(const JSONRPCRequest& request)
     CWallet* const pwallet = GetWalletForJSONRPCRequest(request);
     if (request.fHelp || (request.params.size() < 4 || request.params.size() > 6))
         protx_update_service_help(pwallet);
-
-    ObserveSafeMode();
 
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
@@ -724,8 +717,6 @@ UniValue protx_update_registrar(const JSONRPCRequest& request)
         protx_update_registrar_help(pwallet);
     }
 
-    ObserveSafeMode();
-
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
 
@@ -813,8 +804,6 @@ UniValue protx_revoke(const JSONRPCRequest& request)
     if (request.fHelp || (request.params.size() < 3 || request.params.size() > 5)) {
         protx_revoke_help(pwallet);
     }
-
-    ObserveSafeMode();
 
     if (!EnsureWalletIsAvailable(pwallet, request.fHelp))
         return NullUniValue;
@@ -933,7 +922,7 @@ UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMNCPtr& dmn, bo
     dmn->ToJson(o);
 
     int confirmations = GetUTXOConfirmations(dmn->collateralOutpoint);
-    o.push_back(Pair("confirmations", confirmations));
+    o.pushKV("confirmations", confirmations);
 
     bool hasOwnerKey = CheckWalletOwnsKey(pwallet, dmn->pdmnState->keyIDOwner);
     bool hasOperatorKey = false; //CheckWalletOwnsKey(dmn->pdmnState->keyIDOperator);
@@ -949,18 +938,18 @@ UniValue BuildDMNListEntry(CWallet* pwallet, const CDeterministicMNCPtr& dmn, bo
 #ifdef ENABLE_WALLET
     if (pwallet) {
         UniValue walletObj(UniValue::VOBJ);
-        walletObj.push_back(Pair("hasOwnerKey", hasOwnerKey));
-        walletObj.push_back(Pair("hasOperatorKey", hasOperatorKey));
-        walletObj.push_back(Pair("hasVotingKey", hasVotingKey));
-        walletObj.push_back(Pair("ownsCollateral", ownsCollateral));
-        walletObj.push_back(Pair("ownsPayeeScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptPayout)));
-        walletObj.push_back(Pair("ownsOperatorRewardScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptOperatorPayout)));
-        o.push_back(Pair("wallet", walletObj));
+        walletObj.pushKV("hasOwnerKey", hasOwnerKey);
+        walletObj.pushKV("hasOperatorKey", hasOperatorKey);
+        walletObj.pushKV("hasVotingKey", hasVotingKey);
+        walletObj.pushKV("ownsCollateral", ownsCollateral);
+        walletObj.pushKV("ownsPayeeScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptPayout));
+        walletObj.pushKV("ownsOperatorRewardScript", CheckWalletOwnsScript(pwallet, dmn->pdmnState->scriptOperatorPayout));
+        o.pushKV("wallet", walletObj);
     }
 #endif
 
     auto metaInfo = mmetaman.GetMetaInfo(dmn->proTxHash);
-    o.push_back(Pair("metaInfo", metaInfo->ToJson()));
+    o.pushKV("metaInfo", metaInfo->ToJson());
 
     return o;
 }
@@ -1216,8 +1205,8 @@ UniValue bls_generate(const JSONRPCRequest& request)
     sk.MakeNewKey();
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("secret", sk.ToString()));
-    ret.push_back(Pair("public", sk.GetPublicKey().ToString()));
+    ret.pushKV("secret", sk.ToString());
+    ret.pushKV("public", sk.GetPublicKey().ToString());
     return ret;
 }
 
@@ -1250,8 +1239,8 @@ UniValue bls_fromsecret(const JSONRPCRequest& request)
     }
 
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("secret", sk.ToString()));
-    ret.push_back(Pair("public", sk.GetPublicKey().ToString()));
+    ret.pushKV("secret", sk.ToString());
+    ret.pushKV("public", sk.GetPublicKey().ToString());
     return ret;
 }
 

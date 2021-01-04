@@ -45,23 +45,23 @@ void CDeterministicMNState::ToJson(UniValue& obj) const
 {
     obj.clear();
     obj.setObject();
-    obj.push_back(Pair("service", addr.ToStringIPPort(false)));
-    obj.push_back(Pair("registeredHeight", nRegisteredHeight));
-    obj.push_back(Pair("lastPaidHeight", nLastPaidHeight));
-    obj.push_back(Pair("PoSePenalty", nPoSePenalty));
-    obj.push_back(Pair("PoSeRevivedHeight", nPoSeRevivedHeight));
-    obj.push_back(Pair("PoSeBanHeight", nPoSeBanHeight));
-    obj.push_back(Pair("revocationReason", nRevocationReason));
-    obj.push_back(Pair("ownerAddress", EncodeDestination(keyIDOwner)));
-    obj.push_back(Pair("votingAddress", EncodeDestination(keyIDVoting)));
+    obj.pushKV("service", addr.ToStringIPPort(false));
+    obj.pushKV("registeredHeight", nRegisteredHeight);
+    obj.pushKV("lastPaidHeight", nLastPaidHeight);
+    obj.pushKV("PoSePenalty", nPoSePenalty);
+    obj.pushKV("PoSeRevivedHeight", nPoSeRevivedHeight);
+    obj.pushKV("PoSeBanHeight", nPoSeBanHeight);
+    obj.pushKV("revocationReason", nRevocationReason);
+    obj.pushKV("ownerAddress", EncodeDestination(keyIDOwner));
+    obj.pushKV("votingAddress", EncodeDestination(keyIDVoting));
 
     CTxDestination dest;
     if (ExtractDestination(scriptPayout, dest)) {
-        obj.push_back(Pair("payoutAddress", EncodeDestination(dest)));
+        obj.pushKV("payoutAddress", EncodeDestination(dest));
     }
-    obj.push_back(Pair("pubKeyOperator", pubKeyOperator.Get().ToString()));
+    obj.pushKV("pubKeyOperator", pubKeyOperator.Get().ToString());
     if (ExtractDestination(scriptOperatorPayout, dest)) {
-        obj.push_back(Pair("operatorPayoutAddress", EncodeDestination(dest)));
+        obj.pushKV("operatorPayoutAddress", EncodeDestination(dest));
     }
 }
 
@@ -85,20 +85,20 @@ void CDeterministicMN::ToJson(UniValue& obj) const
     UniValue stateObj;
     pdmnState->ToJson(stateObj);
 
-    obj.push_back(Pair("proTxHash", proTxHash.ToString()));
-    obj.push_back(Pair("collateralHash", collateralOutpoint.hash.ToString()));
-    obj.push_back(Pair("collateralIndex", (int)collateralOutpoint.n));
+    obj.pushKV("proTxHash", proTxHash.ToString());
+    obj.pushKV("collateralHash", collateralOutpoint.hash.ToString());
+    obj.pushKV("collateralIndex", (int)collateralOutpoint.n);
 
     Coin coin;
     if (GetUTXOCoin(collateralOutpoint, coin)) {
         CTxDestination dest;
         if (ExtractDestination(coin.out.scriptPubKey, dest)) {
-            obj.push_back(Pair("collateralAddress", EncodeDestination(dest)));
+            obj.pushKV("collateralAddress", EncodeDestination(dest));
         }
     }
 
-    obj.push_back(Pair("operatorReward", (double)nOperatorReward / 100));
-    obj.push_back(Pair("state", stateObj));
+    obj.pushKV("operatorReward", (double)nOperatorReward / 100);
+    obj.pushKV("state", stateObj);
 }
 
 bool CDeterministicMNList::IsMNValid(const uint256& proTxHash) const
@@ -119,16 +119,15 @@ bool CDeterministicMNList::IsMNPoSeBanned(const uint256& proTxHash) const
     return IsMNPoSeBanned(*p);
 }
 
-bool CDeterministicMNList::IsMNValid(const CDeterministicMNCPtr& dmn) const
+bool CDeterministicMNList::IsMNValid(const CDeterministicMNCPtr& dmn)
 {
     return !IsMNPoSeBanned(dmn);
 }
 
-bool CDeterministicMNList::IsMNPoSeBanned(const CDeterministicMNCPtr& dmn) const
+bool CDeterministicMNList::IsMNPoSeBanned(const CDeterministicMNCPtr& dmn)
 {
     assert(dmn);
-    const CDeterministicMNState& state = *dmn->pdmnState;
-    return state.nPoSeBanHeight != -1;
+    return dmn->pdmnState->IsBanned();
 }
 
 CDeterministicMNCPtr CDeterministicMNList::GetMN(const uint256& proTxHash) const
@@ -332,8 +331,8 @@ void CDeterministicMNList::PoSePunish(const uint256& proTxHash, int penalty, boo
                   __func__, proTxHash.ToString(), dmn->pdmnState->nPoSePenalty, newState->nPoSePenalty, maxPenalty);
     }
 
-    if (newState->nPoSePenalty >= maxPenalty && newState->nPoSeBanHeight == -1) {
-        newState->nPoSeBanHeight = nHeight;
+    if (newState->nPoSePenalty >= maxPenalty && !newState->IsBanned()) {
+        newState->BanIfNotBanned(nHeight);
         if (debugLogs) {
             LogPrintf("CDeterministicMNList::%s -- banned MN %s at height %d\n",
                       __func__, proTxHash.ToString(), nHeight);
@@ -348,7 +347,7 @@ void CDeterministicMNList::PoSeDecrease(const uint256& proTxHash)
     if (!dmn) {
         throw(std::runtime_error(strprintf("%s: Can't find a masternode with proTxHash=%s", __func__, proTxHash.ToString())));
     }
-    assert(dmn->pdmnState->nPoSePenalty > 0 && dmn->pdmnState->nPoSeBanHeight == -1);
+    assert(dmn->pdmnState->nPoSePenalty > 0 && !dmn->pdmnState->IsBanned());
 
     auto newState = std::make_shared<CDeterministicMNState>(*dmn->pdmnState);
     newState->nPoSePenalty--;
@@ -735,7 +734,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             dmnState->nRegisteredHeight = nHeight;
             if (proTx.addr == CService()) {
                 // start in banned pdmnState as we need to wait for a ProUpServTx
-                dmnState->nPoSeBanHeight = nHeight;
+                dmnState->BanIfNotBanned(nHeight);
             }
             dmn->pdmnState = dmnState;
 
@@ -763,13 +762,10 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             newState->addr = proTx.addr;
             newState->scriptOperatorPayout = proTx.scriptOperatorPayout;
 
-            if (newState->nPoSeBanHeight != -1) {
+            if (newState->IsBanned()) {
                 // only revive when all keys are set
                 if (newState->pubKeyOperator.Get().IsValid() && !newState->keyIDVoting.IsNull() && !newState->keyIDOwner.IsNull()) {
-                    newState->nPoSePenalty = 0;
-                    newState->nPoSeBanHeight = -1;
-                    newState->nPoSeRevivedHeight = nHeight;
-
+                    newState->Revive(nHeight);
                     if (debugLogs) {
                         LogPrintf("CDeterministicMNManager::%s -- MN %s revived at height %d\n",
                             __func__, proTx.proTxHash.ToString(), nHeight);
@@ -836,7 +832,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             }
             if (!qc.commitment.IsNull()) {
                 const auto& params = Params().GetConsensus().llmqs.at(qc.commitment.llmqType);
-                int quorumHeight = qc.nHeight - (qc.nHeight % params.dkgInterval);
+                uint32_t quorumHeight = qc.nHeight - (qc.nHeight % params.dkgInterval);
                 auto quorumIndex = pindexPrev->GetAncestor(quorumHeight);
                 if (!quorumIndex || quorumIndex->GetBlockHash() != qc.commitment.quorumHash) {
                     // we should actually never get into this case as validation should have catched it...but lets be sure
@@ -906,7 +902,7 @@ void CDeterministicMNManager::DecreasePoSePenalties(CDeterministicMNList& mnList
     // only iterate and decrease for valid ones (not PoSe banned yet)
     // if a MN ever reaches the maximum, it stays in PoSe banned state until revived
     mnList.ForEachMN(true, [&](const CDeterministicMNCPtr& dmn) {
-        if (dmn->pdmnState->nPoSePenalty > 0 && dmn->pdmnState->nPoSeBanHeight == -1) {
+        if (dmn->pdmnState->nPoSePenalty > 0 && !dmn->pdmnState->IsBanned()) {
             toDecrease.emplace_back(dmn->proTxHash);
         }
     });
@@ -1122,8 +1118,6 @@ void CDeterministicMNManager::UpgradeDiff(CDBBatch& batch, const CBlockIndex* pi
     }
 
     batch.Write(std::make_pair(DB_LIST_DIFF, pindexNext->GetBlockHash()), newDiff);
-
-    return;
 }
 
 // TODO this can be completely removed in a future version
@@ -1132,7 +1126,8 @@ bool CDeterministicMNManager::UpgradeDBIfNeeded()
     LOCK(cs_main);
 
     if (chainActive.Tip() == nullptr) {
-        return true;
+        // should have no records
+        return evoDb.IsEmpty();
     }
 
     if (evoDb.GetRawDB().Exists(EVODB_BEST_BLOCK)) {

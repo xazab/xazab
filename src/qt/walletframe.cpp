@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <qt/walletframe.h>
+#include <qt/walletmodel.h>
 
 #include <qt/bitcoingui.h>
 #include <qt/walletview.h>
@@ -38,10 +39,16 @@ void WalletFrame::setClientModel(ClientModel *_clientModel)
     this->clientModel = _clientModel;
 }
 
-bool WalletFrame::addWallet(const QString& name, WalletModel *walletModel)
+bool WalletFrame::addWallet(WalletModel *walletModel)
 {
-    if (!gui || !clientModel || !walletModel || mapWalletViews.count(name) > 0)
+    if (!gui || !clientModel || !walletModel) {
         return false;
+    }
+
+    const QString name = walletModel->getWalletName();
+    if (mapWalletViews.count(name) > 0) {
+        return false;
+    }
 
     WalletView* walletView = new WalletView(this);
     walletView->setBitcoinGUI(gui);
@@ -49,8 +56,13 @@ bool WalletFrame::addWallet(const QString& name, WalletModel *walletModel)
     walletView->setWalletModel(walletModel);
     walletView->showOutOfSyncWarning(bOutOfSync);
 
-     /* TODO we should goto the currently selected page once dynamically adding wallets is supported */
-    walletView->gotoOverviewPage();
+    WalletView* current_wallet_view = currentWalletView();
+    if (current_wallet_view) {
+        walletView->setCurrentIndex(current_wallet_view->currentIndex());
+    } else {
+        walletView->gotoOverviewPage();
+    }
+
     walletStack->addWidget(walletView);
     mapWalletViews[name] = walletView;
 

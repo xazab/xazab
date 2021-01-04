@@ -4,8 +4,9 @@
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 """Base class for RPC testing."""
+
+import configparser
 import copy
-from collections import deque
 from enum import Enum
 import logging
 import optparse
@@ -15,7 +16,6 @@ import shutil
 import sys
 import tempfile
 import time
-import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from .authproxy import JSONRPCException
@@ -44,6 +44,7 @@ from .util import (
     initialize_datadir,
     p2p_port,
     set_node_times,
+    set_timeout_scale,
     satoshi_round,
     sync_blocks,
     sync_mempools,
@@ -83,6 +84,7 @@ class BitcoinTestFramework():
         self.nodes = []
         self.mocktime = 0
         self.supports_cli = False
+        self.bind_to_localhost_only = True
         self.extra_args_from_options = []
         self.set_test_params()
 
@@ -96,10 +98,10 @@ class BitcoinTestFramework():
                           help="Leave xazabds and test.* datadir on exit or error")
         parser.add_option("--noshutdown", dest="noshutdown", default=False, action="store_true",
                           help="Don't stop xazabds after the test execution")
-        parser.add_option("--srcdir", dest="srcdir", default=os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/../../../src"),
+        parser.add_option("--srcdir", dest="srcdir", default=os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../../src"),
                           help="Source directory containing xazabd/xazab-cli (default: %default)")
-        parser.add_option("--cachedir", dest="cachedir", default=os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/../../cache"),
-                          help="Directory for caching pregenerated datadirs")
+        parser.add_option("--cachedir", dest="cachedir", default=os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../cache"),
+                          help="Directory for caching pregenerated datadirs (default: %default)")
         parser.add_option("--tmpdir", dest="tmpdir", help="Root directory for datadirs")
         parser.add_option("-l", "--loglevel", dest="loglevel", default="INFO",
                           help="log events at this level and higher to the console. Can be set to DEBUG, INFO, WARNING, ERROR or CRITICAL. Passing --loglevel DEBUG will output all logs to console. Note that logs at all levels are always written to the test_framework.log file in the temporary test directory.")
@@ -110,23 +112,38 @@ class BitcoinTestFramework():
         parser.add_option("--coveragedir", dest="coveragedir",
                           help="Write tested RPC commands into this directory")
         parser.add_option("--configfile", dest="configfile",
-                          help="Location of the test framework config file")
+                          default=os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../config.ini"),
+                          help="Location of the test framework config file (default: %default)")
         parser.add_option("--pdbonfailure", dest="pdbonfailure", default=False, action="store_true",
                           help="Attach a python debugger if test fails")
         parser.add_option("--usecli", dest="usecli", default=False, action="store_true",
                           help="use xazab-cli instead of RPC for all commands")
         parser.add_option("--xazabd-arg", dest="xazabd_extra_args", default=[], type='string', action='append',
                           help="Pass extra args to all xazabd instances")
+        parser.add_option("--timeoutscale", dest="timeout_scale", default=1, type='int' ,
+                          help="Scale the test timeouts by multiplying them with the here provided value (defaul: 1)")
         self.add_options(parser)
         (self.options, self.args) = parser.parse_args()
 
+        if self.options.timeout_scale < 1:
+            raise RuntimeError("--timeoutscale can't be less than 1")
+
+        set_timeout_scale(self.options.timeout_scale)
+
         PortSeed.n = self.options.port_seed
 
-        os.environ['PATH'] = self.options.srcdir + ":" + self.options.srcdir + "/qt:" + os.environ['PATH']
+        os.environ['PATH'] = self.options.srcdir + os.pathsep + \
+                             self.options.srcdir + os.path.sep + "qt" + os.pathsep + \
+                             os.environ['PATH']
 
         check_json_precision()
 
         self.options.cachedir = os.path.abspath(self.options.cachedir)
+
+        config = configparser.ConfigParser()
+        config.read_file(open(self.options.configfile))
+        self.options.bitcoind = os.getenv("BITCOIND", default=config["environment"]["BUILDDIR"] + '/src/xazabd' + config["environment"]["EXEEXT"])
+        self.options.bitcoincli = os.getenv("BITCOINCLI", default=config["environment"]["BUILDDIR"] + '/src/xazab-cli' + config["environment"]["EXEEXT"])
 
         self.extra_args_from_options = self.options.xazabd_extra_args
 
@@ -147,18 +164,18 @@ class BitcoinTestFramework():
             self.setup_network()
             self.run_test()
             success = TestStatus.PASSED
-        except JSONRPCException as e:
+        except JSONRPCException:
             self.log.exception("JSONRPC error")
         except SkipTest as e:
             self.log.warning("Test Skipped: %s" % e.message)
             success = TestStatus.SKIPPED
-        except AssertionError as e:
+        except AssertionError:
             self.log.exception("Assertion failed")
-        except KeyError as e:
+        except KeyError:
             self.log.exception("Key error")
-        except Exception as e:
+        except Exception:
             self.log.exception("Unexpected exception caught during testing")
-        except KeyboardInterrupt as e:
+        except KeyboardInterrupt:
             self.log.warning("Exiting after keyboard interrupt")
 
         if success == TestStatus.FAILED and self.options.pdbonfailure:
@@ -170,7 +187,7 @@ class BitcoinTestFramework():
             try:
                 if self.nodes:
                     self.stop_nodes()
-            except BaseException as e:
+            except BaseException:
                 success = False
                 self.log.exception("Unexpected exception caught during shutdown")
         else:
@@ -179,40 +196,30 @@ class BitcoinTestFramework():
             self.log.info("Note: xazabds were not stopped and may still be running")
 
         if not self.options.nocleanup and not self.options.noshutdown and success != TestStatus.FAILED:
-            self.log.info("Cleaning up")
-            shutil.rmtree(self.options.tmpdir)
+            self.log.info("Cleaning up {} on exit".format(self.options.tmpdir))
+            cleanup_tree_on_exit = True
         else:
             self.log.warning("Not cleaning up dir %s" % self.options.tmpdir)
-            if os.getenv("PYTHON_DEBUG", ""):
-                # Dump the end of the debug logs, to aid in debugging rare
-                # travis failures.
-                import glob
-                filenames = [self.options.tmpdir + "/test_framework.log"]
-                filenames += glob.glob(self.options.tmpdir + "/node*/regtest/debug.log")
-                MAX_LINES_TO_PRINT = 1000
-                for fn in filenames:
-                    try:
-                        with open(fn, 'r') as f:
-                            print("From", fn, ":")
-                            print("".join(deque(f, MAX_LINES_TO_PRINT)))
-                    except OSError:
-                        print("Opening file %s failed." % fn)
-                        traceback.print_exc()
+            cleanup_tree_on_exit = False
 
         if success == TestStatus.PASSED:
             self.log.info("Tests successful")
-            sys.exit(TEST_EXIT_PASSED)
+            exit_code = TEST_EXIT_PASSED
         elif success == TestStatus.SKIPPED:
             self.log.info("Test skipped")
-            sys.exit(TEST_EXIT_SKIPPED)
+            exit_code = TEST_EXIT_SKIPPED
         else:
             self.log.error("Test failed. Test logging available at %s/test_framework.log", self.options.tmpdir)
-            logging.shutdown()
-            sys.exit(TEST_EXIT_FAILED)
+            self.log.error("Hint: Call {} '{}' to consolidate all logs".format(os.path.normpath(os.path.dirname(os.path.realpath(__file__)) + "/../combine_logs.py"), self.options.tmpdir))
+            exit_code = TEST_EXIT_FAILED
+        logging.shutdown()
+        if cleanup_tree_on_exit:
+            shutil.rmtree(self.options.tmpdir)
+        sys.exit(exit_code)
 
     # Methods to override in subclass test scripts.
     def set_test_params(self):
-        """Tests must override this method to change default values for number of nodes, topology, etc"""
+        """Tests must this method to change default values for number of nodes, topology, etc"""
         raise NotImplementedError
 
     def add_options(self, parser):
@@ -259,16 +266,20 @@ class BitcoinTestFramework():
 
     def add_nodes(self, num_nodes, extra_args=None, rpchost=None, timewait=None, binary=None, stderr=None):
         """Instantiate TestNode objects"""
-
+        if self.bind_to_localhost_only:
+            extra_confs = [["bind=127.0.0.1"]] * num_nodes
+        else:
+            extra_confs = [[]] * num_nodes
         if extra_args is None:
             extra_args = [[]] * num_nodes
         if binary is None:
-            binary = [None] * num_nodes
+            binary = [self.options.bitcoind] * num_nodes
+        assert_equal(len(extra_confs), num_nodes)
         assert_equal(len(extra_args), num_nodes)
         assert_equal(len(binary), num_nodes)
         old_num_nodes = len(self.nodes)
         for i in range(num_nodes):
-            self.nodes.append(TestNode(old_num_nodes + i, self.options.tmpdir, extra_args[i], self.extra_args_from_options, rpchost, timewait=timewait, binary=binary[i], stderr=stderr, mocktime=self.mocktime, coverage_dir=self.options.coveragedir, use_cli=self.options.usecli))
+            self.nodes.append(TestNode(old_num_nodes + i, get_datadir_path(self.options.tmpdir, old_num_nodes + i), self.extra_args_from_options, rpchost=rpchost, timewait=timewait, bitcoind=binary[i], bitcoin_cli=self.options.bitcoincli, stderr=stderr, mocktime=self.mocktime, coverage_dir=self.options.coveragedir, extra_conf=extra_confs[i], extra_args=extra_args[i], use_cli=self.options.usecli))
 
     def start_node(self, i, *args, **kwargs):
         """Start a xazabd"""
@@ -320,27 +331,6 @@ class BitcoinTestFramework():
         """Stop and start a test node"""
         self.stop_node(i)
         self.start_node(i, extra_args)
-
-    def assert_start_raises_init_error(self, i, extra_args=None, expected_msg=None, *args, **kwargs):
-        with tempfile.SpooledTemporaryFile(max_size=2**16) as log_stderr:
-            try:
-                self.start_node(i, extra_args, stderr=log_stderr, *args, **kwargs)
-                self.stop_node(i)
-            except Exception as e:
-                assert 'xazabd exited' in str(e)  # node must have shutdown
-                self.nodes[i].running = False
-                self.nodes[i].process = None
-                if expected_msg is not None:
-                    log_stderr.seek(0)
-                    stderr = log_stderr.read().decode('utf-8')
-                    if expected_msg not in stderr:
-                        raise AssertionError("Expected error \"" + expected_msg + "\" not found in:\n" + stderr)
-            else:
-                if expected_msg is None:
-                    assert_msg = "xazabd should have exited with an error"
-                else:
-                    assert_msg = "xazabd should have exited with expected error " + expected_msg
-                raise AssertionError(assert_msg)
 
     def wait_for_node_exit(self, i, timeout):
         self.nodes[i].process.wait(timeout)
@@ -407,7 +397,7 @@ class BitcoinTestFramework():
         self.log = logging.getLogger('TestFramework')
         self.log.setLevel(logging.DEBUG)
         # Create file handler to log all messages
-        fh = logging.FileHandler(self.options.tmpdir + '/test_framework.log')
+        fh = logging.FileHandler(self.options.tmpdir + '/test_framework.log', encoding='utf-8')
         fh.setLevel(logging.DEBUG)
         # Create console handler to log messages to stderr. By default this logs only error messages, but can be configured with --loglevel.
         ch = logging.StreamHandler(sys.stdout)
@@ -415,7 +405,7 @@ class BitcoinTestFramework():
         ll = int(self.options.loglevel) if self.options.loglevel.isdigit() else self.options.loglevel.upper()
         ch.setLevel(ll)
         # Format logs the same as xazabd's debug.log with microprecision (so log files can be concatenated and sorted)
-        formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d000 %(name)s (%(levelname)s): %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d000Z %(name)s (%(levelname)s): %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
         formatter.converter = time.gmtime
         fh.setFormatter(formatter)
         ch.setFormatter(formatter)
@@ -460,7 +450,7 @@ class BitcoinTestFramework():
                     args.append("-connect=127.0.0.1:" + str(p2p_port(0)))
                 if extra_args is not None:
                     args.extend(extra_args)
-                self.nodes.append(TestNode(i, self.options.cachedir, extra_args=[], extra_args_from_options=self.extra_args_from_options, rpchost=None, timewait=None, binary=None, stderr=stderr, mocktime=self.mocktime, coverage_dir=None))
+                self.nodes.append(TestNode(i, get_datadir_path(self.options.cachedir, i), extra_conf=["bind=127.0.0.1"], extra_args=[],extra_args_from_options=self.extra_args_from_options, rpchost=None, timewait=None, bitcoind=self.options.bitcoind, bitcoin_cli=self.options.bitcoincli, stderr=stderr, mocktime=self.mocktime, coverage_dir=None))
                 self.nodes[i].args = args
                 self.start_node(i)
 
@@ -553,10 +543,15 @@ class XazabTestFramework(BitcoinTestFramework):
         self.llmq_threshold = 2
 
     def set_xazab_dip8_activation(self, activate_after_block):
-        window = int((activate_after_block + 2) / 3)
-        threshold = int((window + 1) / 2)
+        self.dip8_activation_height = activate_after_block
         for i in range(0, self.num_nodes):
-            self.extra_args[i].append("-vbparams=dip0008:0:999999999999:%d:%d" % (window, threshold))
+            self.extra_args[i].append("-dip8params=%d" % (activate_after_block))
+
+    def activate_dip8(self):
+        self.log.info("Wait for dip0008 activation")
+        while self.nodes[0].getblockcount() < self.dip8_activation_height:
+            self.nodes[0].generate(10)
+        self.sync_blocks(self.nodes)
 
     def set_xazab_llmq_test_params(self, llmq_size, llmq_threshold):
         self.llmq_size = llmq_size
@@ -974,14 +969,16 @@ class XazabTestFramework(BitcoinTestFramework):
             expected_contributions = self.llmq_size
         if expected_commitments is None:
             expected_commitments = self.llmq_size
-        if mninfos is None:
-            mninfos = self.mninfo
+        if mninfos_online is None:
+            mninfos_online = self.mninfo.copy()
+        if mninfos_valid is None:
+            mninfos_valid = self.mninfo.copy()
 
         self.log.info("Mining quorum: expected_members=%d, expected_connections=%d, expected_contributions=%d, expected_complaints=%d, expected_justifications=%d, "
                       "expected_commitments=%d" % (expected_members, expected_connections, expected_contributions, expected_complaints,
                                                    expected_justifications, expected_commitments))
 
-        nodes = [self.nodes[0]] + [mn.node for mn in mninfos]
+        nodes = [self.nodes[0]] + [mn.node for mn in mninfos_online]
 
         # move forward to next DKG
         skip_count = 24 - (self.nodes[0].getblockcount() % 24)
@@ -993,7 +990,7 @@ class XazabTestFramework(BitcoinTestFramework):
         q = self.nodes[0].getbestblockhash()
 
         self.log.info("Waiting for phase 1 (init)")
-        self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos)
+        self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos_online)
         self.wait_for_quorum_connections(expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         if spork21_active:
             self.wait_for_masternode_probes(mninfos_valid, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
@@ -1002,31 +999,31 @@ class XazabTestFramework(BitcoinTestFramework):
         sync_blocks(nodes)
 
         self.log.info("Waiting for phase 2 (contribute)")
-        self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos)
+        self.wait_for_quorum_phase(q, 2, expected_members, "receivedContributions", expected_contributions, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
         sync_blocks(nodes)
 
         self.log.info("Waiting for phase 3 (complain)")
-        self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos)
+        self.wait_for_quorum_phase(q, 3, expected_members, "receivedComplaints", expected_complaints, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
         sync_blocks(nodes)
 
         self.log.info("Waiting for phase 4 (justify)")
-        self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos)
+        self.wait_for_quorum_phase(q, 4, expected_members, "receivedJustifications", expected_justifications, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
         sync_blocks(nodes)
 
         self.log.info("Waiting for phase 5 (commit)")
-        self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos)
+        self.wait_for_quorum_phase(q, 5, expected_members, "receivedPrematureCommitments", expected_commitments, mninfos_online)
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
         sync_blocks(nodes)
 
         self.log.info("Waiting for phase 6 (mining)")
-        self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos)
+        self.wait_for_quorum_phase(q, 6, expected_members, None, 0, mninfos_online)
 
         self.log.info("Waiting final commitment")
         self.wait_for_quorum_commitment(q, nodes)
@@ -1051,6 +1048,19 @@ class XazabTestFramework(BitcoinTestFramework):
         self.log.info("New quorum: height=%d, quorumHash=%s, minedBlock=%s" % (quorum_info["height"], new_quorum, quorum_info["minedBlock"]))
 
         return new_quorum
+
+    def get_recovered_sig(self, rec_sig_id, rec_sig_msg_hash, llmq_type=100, node=None):
+        node = self.nodes[0] if node is None else node
+        rec_sig = None
+        time_start = time.time()
+        while time.time() - time_start < 10:
+            try:
+                rec_sig = node.quorum('getrecsig', llmq_type, rec_sig_id, rec_sig_msg_hash)
+                break
+            except JSONRPCException:
+                time.sleep(0.1)
+        assert(rec_sig is not None)
+        return rec_sig
 
     def get_quorum_masternodes(self, q):
         qi = self.nodes[0].quorum('info', 100, q)
@@ -1091,9 +1101,9 @@ def skip_if_no_py3_zmq():
 
 
 def skip_if_no_bitcoind_zmq(test_instance):
-    """Skip the running test if dashd has not been compiled with zmq support."""
+    """Skip the running test if xazabd has not been compiled with zmq support."""
     config = configparser.ConfigParser()
     config.read_file(open(test_instance.options.configfile))
 
     if not config["components"].getboolean("ENABLE_ZMQ"):
-        raise SkipTest("dashd has not been built with zmq enabled.")
+        raise SkipTest("xazabd has not been built with zmq enabled.")

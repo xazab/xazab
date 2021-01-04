@@ -38,11 +38,6 @@ static void CoinSelection(benchmark::State& state)
     LOCK(wallet.cs_wallet);
 
     while (state.KeepRunning()) {
-        // Empty wallet.
-        for (COutput output : vCoins)
-            delete output.tx;
-        vCoins.clear();
-
         // Add coins.
         for (int i = 0; i < 1000; i++)
             addCoin(1000 * COIN, wallet, vCoins);
@@ -58,48 +53,12 @@ static void CoinSelection(benchmark::State& state)
         assert(success);
         assert(nValueRet == 1003 * COIN);
         assert(setCoinsRet.size() == 2);
-    }
-}
 
-typedef std::set<CInputCoin> CoinSet;
-
-// Copied from src/wallet/test/coinselector_tests.cpp
-static void add_coin(const CAmount& nValue, int nInput, std::vector<CInputCoin>& set)
-{
-    CMutableTransaction tx;
-    tx.vout.resize(nInput + 1);
-    tx.vout[nInput].nValue = nValue;
-    set.emplace_back(MakeTransactionRef(tx), nInput);
-}
-// Copied from src/wallet/test/coinselector_tests.cpp
-static CAmount make_hard_case(int utxos, std::vector<CInputCoin>& utxo_pool)
-{
-    utxo_pool.clear();
-    CAmount target = 0;
-    for (int i = 0; i < utxos; ++i) {
-        target += (CAmount)1 << (utxos+i);
-        add_coin((CAmount)1 << (utxos+i), 2*i, utxo_pool);
-        add_coin(((CAmount)1 << (utxos+i)) + ((CAmount)1 << (utxos-1-i)), 2*i + 1, utxo_pool);
-    }
-    return target;
-}
-
-static void BnBExhaustion(benchmark::State& state)
-{
-    // Setup
-    std::vector<CInputCoin> utxo_pool;
-    CoinSet selection;
-    CAmount value_ret = 0;
-    CAmount not_input_fees = 0;
-
-    while (state.KeepRunning()) {
-        // Benchmark
-        CAmount target = make_hard_case(17, utxo_pool);
-        SelectCoinsBnB(utxo_pool, target, 0, selection, value_ret, not_input_fees); // Should exhaust
-
-        // Cleanup
-        utxo_pool.clear();
-        selection.clear();
+        // Empty wallet.
+        for (COutput& output : vCoins) {
+            delete output.tx;
+        }
+        vCoins.clear();
     }
 }
 

@@ -109,10 +109,7 @@ class XazabZMQTest (XazabTestFramework):
             self.socket = self.zmq_context.socket(zmq.SUB)
             self.socket.connect(self.address)
             # Initialize the network
-            self.log.info("Wait for dip0008 activation")
-            while self.nodes[0].getblockchaininfo()["bip9_softforks"]["dip0008"]["status"] != "active":
-                self.nodes[0].generate(10)
-            self.sync_blocks()
+            self.activate_dip8()
             self.nodes[0].spork("SPORK_17_QUORUM_DKG_ENABLED", 0)
             self.wait_for_sporks_same()
             # Create an LLMQ for testing
@@ -134,12 +131,12 @@ class XazabZMQTest (XazabTestFramework):
             self.zmq_context.destroy(linger=None)
 
     def subscribe(self, publishers):
-        # Subscribe a list of ZMQPublisher
+        # Subscribe to a list of ZMQPublishers
         for pub in publishers:
             self.socket.subscribe(pub.value)
 
     def unsubscribe(self, publishers):
-        # Unsubscribe a list of ZMQPublisher
+        # Unsubscribe from a list of ZMQPublishers
         for pub in publishers:
             self.socket.unsubscribe(pub.value)
 
@@ -172,7 +169,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_recovered_sig
         ]
         self.log.info("Testing %d recovered signature publishers" % len(recovered_sig_publishers))
-        # Subscribe recovered signature messages
+        # Subscribe to recovered signature messages
         self.subscribe(recovered_sig_publishers)
         # Generate a ChainLock and make sure this leads to valid recovered sig ZMQ messages
         rpc_last_block_hash = self.nodes[0].generate(1)[0]
@@ -186,7 +183,7 @@ class XazabZMQTest (XazabTestFramework):
         for mn in self.get_quorum_masternodes(self.quorum_hash):
             mn.node.quorum("sign", self.quorum_type, sign_id, sign_msg_hash)
         validate_recovered_sig(sign_id, sign_msg_hash)
-        # Unsubscribe recovered signature messages
+        # Unsubscribe from recovered signature messages
         self.unsubscribe(recovered_sig_publishers)
 
     def test_chainlock_publishers(self):
@@ -196,7 +193,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_chain_lock_sig
         ]
         self.log.info("Testing %d ChainLock publishers" % len(chain_lock_publishers))
-        # Subscribe ChainLock messages
+        # Subscribe to ChainLock messages
         self.subscribe(chain_lock_publishers)
         # Generate ChainLock
         generated_hash = self.nodes[0].generate(1)[0]
@@ -228,7 +225,7 @@ class XazabZMQTest (XazabTestFramework):
         assert_equal(uint256_to_string(zmq_chain_lock.blockHash), rpc_chain_lock_hash)
         assert_equal(zmq_chain_locked_block.hash, rpc_chain_lock_hash)
         assert_equal(bytes_to_hex_str(zmq_chain_lock.sig), rpc_best_chain_lock_sig)
-        # Unsubscribe ChainLock messages
+        # Unsubscribe from ChainLock messages
         self.unsubscribe(chain_lock_publishers)
 
     def test_instantsend_publishers(self):
@@ -240,7 +237,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_instantsend_doublespend
         ]
         self.log.info("Testing %d InstantSend publishers" % len(instantsend_publishers))
-        # Subscribe InstantSend messages
+        # Subscribe to InstantSend messages
         self.subscribe(instantsend_publishers)
         # Initialize test node
         self.test_node = self.nodes[0].add_p2p_connection(TestP2PConn())
@@ -320,7 +317,7 @@ class XazabZMQTest (XazabTestFramework):
             ZMQPublisher.raw_governance_vote
         ]
         self.log.info("Testing %d governance publishers" % len(governance_publishers))
-        # Subscribe governance messages
+        # Subscribe to governance messages
         self.subscribe(governance_publishers)
         # Create a proposal and submit it to the network
         proposal_rev = 1
@@ -332,7 +329,7 @@ class XazabZMQTest (XazabTestFramework):
             "end_epoch": proposal_time + 60,
             "payment_amount": 5,
             "payment_address": self.nodes[0].getnewaddress(),
-            "url": "https://xazab.xyz"
+            "url": "https://xazab.org"
         }
         proposal_hex = ''.join(format(x, '02x') for x in json.dumps(proposal_data).encode())
         collateral = self.nodes[0].gobject("prepare", "0", proposal_rev, proposal_time, proposal_hex)
@@ -382,7 +379,7 @@ class XazabZMQTest (XazabTestFramework):
         assert_equal(zmq_governance_vote_raw.nTime, int(rpc_vote_parts[1]))
         assert_equal(map_vote_outcomes[zmq_governance_vote_raw.nVoteOutcome], rpc_vote_parts[2])
         assert_equal(map_vote_signals[zmq_governance_vote_raw.nVoteSignal], rpc_vote_parts[3])
-        # Unsubscribe governance messages
+        # Unsubscribe from governance messages
         self.unsubscribe(governance_publishers)
 
 

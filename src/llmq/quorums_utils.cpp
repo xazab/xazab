@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -14,6 +14,9 @@
 
 namespace llmq
 {
+
+CCriticalSection cs_llmq_vbc;
+VersionBitsCache llmq_versionbitscache;
 
 std::vector<CDeterministicMNCPtr> CLLMQUtils::GetAllQuorumMembers(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum)
 {
@@ -83,8 +86,6 @@ uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, c
 
 std::set<uint256> CLLMQUtils::GetQuorumConnections(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& forMember, bool onlyOutbound)
 {
-    auto& params = Params().GetConsensus().llmqs.at(llmqType);
-
     if (IsAllMembersConnectedEnabled(llmqType)) {
         auto mns = GetAllQuorumMembers(llmqType, pindexQuorum);
         std::set<uint256> result;
@@ -201,7 +202,7 @@ void CLLMQUtils::EnsureQuorumConnections(Consensus::LLMQType llmqType, const CBl
                     debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString(false));
                 }
             }
-            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str());
+            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */
         }
         g_connman->SetMasternodeQuorumNodes(llmqType, pindexQuorum->GetBlockHash(), connections);
     }
@@ -237,7 +238,7 @@ void CLLMQUtils::AddQuorumProbeConnections(Consensus::LLMQType llmqType, const C
                     debugMsg += strprintf("  %s (%s)\n", c.ToString(), dmn->pdmnState->addr.ToString(false));
                 }
             }
-            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str());
+            LogPrint(BCLog::NET_NETCONN, debugMsg.c_str()); /* Continued */
         }
         g_connman->AddPendingProbeConnections(probeConnections);
     }
@@ -261,8 +262,10 @@ bool CLLMQUtils::IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quo
 
 bool CLLMQUtils::IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex)
 {
+    LOCK(cs_llmq_vbc);
+
     const Consensus::Params& consensusParams = Params().GetConsensus();
-    bool f_v17_Active =  VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_V17, versionbitscache) == ThresholdState::ACTIVE;
+    bool f_v17_Active = VersionBitsState(pindex, consensusParams, Consensus::DEPLOYMENT_V17, llmq_versionbitscache) == ThresholdState::ACTIVE;
 
     switch (llmqType)
     {

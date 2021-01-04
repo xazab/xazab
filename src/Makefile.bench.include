@@ -1,5 +1,5 @@
 # Copyright (c) 2015-2016 The Bitcoin Core developers
-# Copyright (c) 2014-2018 The Xazab Core developers
+# Copyright (c) 2014-2018 The Dash Core developers
 # Distributed under the MIT software license, see the accompanying
 # file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -21,20 +21,19 @@ bench_bench_xazab_SOURCES = \
   bench/checkblock.cpp \
   bench/checkqueue.cpp \
   bench/ecdsa.cpp \
-  bench/Examples.cpp \
+  bench/examples.cpp \
   bench/rollingbloom.cpp \
   bench/chacha20.cpp \
   bench/chacha_poly_aead.cpp \
   bench/crypto_hash.cpp \
   bench/ccoins_caching.cpp \
+  bench/gcs_filter.cpp \
   bench/merkle_root.cpp \
   bench/mempool_eviction.cpp \
   bench/util_time.cpp \
   bench/base58.cpp \
   bench/lockedpool.cpp \
   bench/poly1305.cpp \
-  bench/perf.cpp \
-  bench/perf.h \
   bench/prevector.cpp \
   bench/string_cast.cpp
 

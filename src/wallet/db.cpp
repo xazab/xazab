@@ -8,7 +8,6 @@
 #include <addrman.h>
 #include <hash.h>
 #include <protocol.h>
-#include <util.h>
 #include <utilstrencodings.h>
 #include <wallet/walletutil.h>
 
@@ -54,7 +53,7 @@ void CheckUniqueFileid(const BerkeleyEnvironment& env, const std::string& filena
 }
 
 CCriticalSection cs_db;
-std::map<std::string, BerkeleyEnvironment> g_dbenvs; //!< Map from directory name to open db environment.
+std::map<std::string, BerkeleyEnvironment> g_dbenvs GUARDED_BY(cs_db); //!< Map from directory name to open db environment.
 } // namespace
 
 BerkeleyEnvironment* GetWalletEnv(const fs::path& wallet_path, std::string& database_filename)
@@ -103,7 +102,7 @@ void BerkeleyEnvironment::Close()
 
     int ret = dbenv->close(0);
     if (ret != 0)
-        LogPrintf("BerkeleyEnvironment::EnvShutdown: Error %d shutting down database environment: %s\n", ret, DbEnv::strerror(ret));
+        LogPrintf("BerkeleyEnvironment::Close: Error %d closing database environment: %s\n", ret, DbEnv::strerror(ret));
     if (!fMockDb)
         DbEnv((u_int32_t)0).remove(strPath.c_str(), 0);
 }
@@ -169,8 +168,12 @@ bool BerkeleyEnvironment::Open(bool retry)
                              nEnvFlags,
                          S_IRUSR | S_IWUSR);
     if (ret != 0) {
-        dbenv->close(0);
         LogPrintf("BerkeleyEnvironment::Open: Error %d opening database environment: %s\n", ret, DbEnv::strerror(ret));
+        int ret2 = dbenv->close(0);
+        if (ret2 != 0) {
+            LogPrintf("BerkeleyEnvironment::Open: Error %d closing failed database environment: %s\n", ret2, DbEnv::strerror(ret2));
+        }
+        Reset();
         if (retry) {
             // try moving the database env out of the way
             fs::path pathDatabaseBak = pathIn / strprintf("database.%d.bak", GetTime());
@@ -235,13 +238,13 @@ BerkeleyEnvironment::VerifyResult BerkeleyEnvironment::Verify(const std::string&
     Db db(dbenv.get(), 0);
     int result = db.verify(strFile.c_str(), nullptr, nullptr, 0);
     if (result == 0)
-        return VERIFY_OK;
+        return VerifyResult::VERIFY_OK;
     else if (recoverFunc == nullptr)
-        return RECOVER_FAIL;
+        return VerifyResult::RECOVER_FAIL;
 
     // Try to recover:
     bool fRecovered = (*recoverFunc)(fs::path(strPath) / strFile, out_backup_filename);
-    return (fRecovered ? RECOVER_OK : RECOVER_FAIL);
+    return (fRecovered ? VerifyResult::RECOVER_OK : VerifyResult::RECOVER_FAIL);
 }
 
 bool BerkeleyBatch::Recover(const fs::path& file_path, void *callbackDataIn, bool (*recoverKVcallback)(void* callbackData, CDataStream ssKey, CDataStream ssValue), std::string& newFilename)
@@ -347,7 +350,7 @@ bool BerkeleyBatch::VerifyDatabaseFile(const fs::path& file_path, std::string& w
     {
         std::string backup_filename;
         BerkeleyEnvironment::VerifyResult r = env->Verify(walletFile, recoverFunc, backup_filename);
-        if (r == BerkeleyEnvironment::RECOVER_OK)
+        if (r == BerkeleyEnvironment::VerifyResult::RECOVER_OK)
         {
             warningStr = strprintf(_("Warning: Wallet file corrupt, data salvaged!"
                                      " Original %s saved as %s in %s; if"
@@ -355,7 +358,7 @@ bool BerkeleyBatch::VerifyDatabaseFile(const fs::path& file_path, std::string& w
                                      " restore from a backup."),
                                    walletFile, backup_filename, walletDir);
         }
-        if (r == BerkeleyEnvironment::RECOVER_FAIL)
+        if (r == BerkeleyEnvironment::VerifyResult::RECOVER_FAIL)
         {
             errorStr = strprintf(_("%s corrupt, salvage failed"), walletFile);
             return false;

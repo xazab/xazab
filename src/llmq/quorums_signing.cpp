@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -16,7 +16,6 @@
 #include <validation.h>
 
 #include <algorithm>
-#include <limits>
 #include <unordered_set>
 
 namespace llmq
@@ -27,12 +26,12 @@ CSigningManager* quorumSigningManager;
 UniValue CRecoveredSig::ToJson() const
 {
     UniValue ret(UniValue::VOBJ);
-    ret.push_back(Pair("llmqType", (int)llmqType));
-    ret.push_back(Pair("quorumHash", quorumHash.ToString()));
-    ret.push_back(Pair("id", id.ToString()));
-    ret.push_back(Pair("msgHash", msgHash.ToString()));
-    ret.push_back(Pair("sig", sig.Get().ToString()));
-    ret.push_back(Pair("hash", sig.Get().GetHash().ToString()));
+    ret.pushKV("llmqType", (int)llmqType);
+    ret.pushKV("quorumHash", quorumHash.ToString());
+    ret.pushKV("id", id.ToString());
+    ret.pushKV("msgHash", msgHash.ToString());
+    ret.pushKV("sig", sig.Get().ToString());
+    ret.pushKV("hash", sig.Get().GetHash().ToString());
     return ret;
 }
 
@@ -580,7 +579,7 @@ void CSigningManager::CollectPendingRecoveredSigsToVerify(
         for (auto it = v.begin(); it != v.end();) {
             auto& recSig = *it;
 
-            Consensus::LLMQType llmqType = (Consensus::LLMQType) recSig.llmqType;
+            auto llmqType = (Consensus::LLMQType) recSig.llmqType;
             auto quorumKey = std::make_pair((Consensus::LLMQType)recSig.llmqType, recSig.quorumHash);
             if (!retQuorums.count(quorumKey)) {
                 CQuorumCPtr quorum = quorumManager->GetQuorum(llmqType, recSig.quorumHash);
@@ -738,6 +737,8 @@ void CSigningManager::ProcessRecoveredSig(NodeId nodeId, const CRecoveredSig& re
     for (auto& l : listeners) {
         l->HandleNewRecoveredSig(recoveredSig);
     }
+
+    GetMainSignals().NotifyRecoveredSig(recoveredSig);
 }
 
 void CSigningManager::PushReconstructedRecoveredSig(const llmq::CRecoveredSig& recoveredSig, const llmq::CQuorumCPtr& quorum)
