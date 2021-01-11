@@ -430,7 +430,8 @@ UniValue getnetworkinfo(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"version\": xxxxx,                      (numeric) the server version\n"
-            "  \"subversion\": \"/Xazab Core:x.x.x/\",     (string) the server subversion string\n"
+            "  \"buildversion\": \"x.x.x.x-xxx\",       (string) the server build version including RC info or commit as relevant\n"
+            "  \"subversion\": \"/Xazab Core:x.x.x.x/\",(string) the server subversion string\n"
             "  \"protocolversion\": xxxxx,              (numeric) the protocol version\n"
             "  \"localservices\": \"xxxxxxxxxxxxxxxx\", (string) the services we offer to the network\n"
             "  \"localrelay\": true|false,              (bool) true if transaction relay is requested from peers\n"
@@ -466,9 +467,16 @@ UniValue getnetworkinfo(const JSONRPCRequest& request)
 
     LOCK(cs_main);
     UniValue obj(UniValue::VOBJ);
+<<<<<<< HEAD
     obj.push_back(Pair("version",       CLIENT_VERSION));
     obj.push_back(Pair("subversion",    strSubVersion));
     obj.push_back(Pair("protocolversion",PROTOCOL_VERSION));
+=======
+    obj.pushKV("version",       CLIENT_VERSION);
+    obj.pushKV("buildversion",  FormatFullVersion());
+    obj.pushKV("subversion",    strSubVersion);
+    obj.pushKV("protocolversion",PROTOCOL_VERSION);
+>>>>>>> 79ef4f8... Adjust version formatting and add formatted version to rpc (#3908)
     if(g_connman)
         obj.push_back(Pair("localservices", strprintf("%016x", g_connman->GetLocalServices())));
     obj.push_back(Pair("localrelay",     fRelayTxes));
