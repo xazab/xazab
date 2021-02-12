@@ -972,7 +972,7 @@ int CGovernanceManager::RequestGovernanceObjectVotes(const std::vector<CNode*>& 
     std::vector<uint256> vOtherObjHashes;
 
     // This should help us to get some idea about an impact this can bring once deployed on mainnet.
-    // Testnet is ~40 times smaller in masternode count, but only ~1000 masternodes usually vote,
+    // Testnet is ~40 times smaller in masternode count, but only ~15000 masternodes usually vote,
     // so 1 obj on mainnet == ~10 objs or ~1000 votes on testnet. However we want to test a higher
     // number of votes to make sure it's robust enough, so aim at 2000 votes per masternode per request.
     // On mainnet nMaxObjRequestsPerNode is always set to 1.

@@ -424,8 +424,11 @@ UniValue protx_register(const JSONRPCRequest& request)
 
     size_t paramIdx = 1;
 
+    if (chainActive.Height() < Params().GetConsensus().nCollateralNewHeight){
     CAmount collateralAmount = 1000 * COIN;
-
+    } else {
+    CAmount collateralAmount = 15000 * COIN;
+     }
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_REGISTER;

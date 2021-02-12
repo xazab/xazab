@@ -347,7 +347,8 @@ public:
         consensus.DIP0003Height = 20; // 000003e02c207c290aba728ffe961b7797e32efc61e985aca036b48ac50480cb
         consensus.DIP0003EnforcementHeight = 30;
         consensus.DIP0003EnforcementHash = uint256S("0000047b2bb97f484c45bf6e18e64fcc5fae8b4043893e01f48a43500ba10617");
-        consensus.DIP0008Height = 180000;
+        consensus.DIP0008Height = 170000;
+        consensus.nCollateralNewHeight = 170000;
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
@@ -389,8 +390,8 @@ public:
 
         // Deployment of DIP0008
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].bit = 4;
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].nStartTime = 1557878400; // May 15th, 2019
-        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].nTimeout = 1589500800; // May 15th, 2020
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].nStartTime = 1613167601; // Feb 12th, 2021
+        consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].nTimeout = 1644703601; // Feb 12th, 2022
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].nThresholdStart = 3226; // 80% of 4032
 
@@ -413,10 +414,10 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nFalloffCoeff = 5; // this corresponds to 10 periods
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("");
+        consensus.nMinimumChainWork = uint256S("00000000000000000000000000000000000000000000000050d9a3f796dcfd8b");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("");
+        consensus.defaultAssumeValid = uint256S("000000000033c19f9bb92b586685e41229036657bdce6021d536b850c959808d");
 
         /**
          * The message start string is designed to be unlikely to occur in normal data.
@@ -486,20 +487,23 @@ public:
 
         checkpointData = {
             {
-                {0,   uint256S("0x00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6")},
-                {10,  uint256S("0x00000056cfbdf18e4890e10a6850943f11e44da5dcaf9b82d9320b99f2fffde3")},
-                {100, uint256S("0x00000832d1e15c23c4064b9d1ca459f16c7aeb27eebd7b46150d026848dc3738")},
-                {150, uint256S("0x000004163822db7d7686d98d9c896c5b6c5dfdcb52e6316e0d4f83fd0d2a124e")},
-                {200, uint256S("0x0000074cd14f9248f611480411d29fc0c659ab4be4086bc99557a5792ee92147")},
-                {300, uint256S("0x000002613222721f35d43170497363813bf19835b2050ac4444031d4a597f324")},
+                {   0,   uint256S("0x00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6")},
+                {   10,  uint256S("0x00000056cfbdf18e4890e10a6850943f11e44da5dcaf9b82d9320b99f2fffde3")},
+                {   100, uint256S("0x00000832d1e15c23c4064b9d1ca459f16c7aeb27eebd7b46150d026848dc3738")},
+                {   150, uint256S("0x000004163822db7d7686d98d9c896c5b6c5dfdcb52e6316e0d4f83fd0d2a124e")},
+                {   200, uint256S("0x0000074cd14f9248f611480411d29fc0c659ab4be4086bc99557a5792ee92147")},
+                {   300, uint256S("0x000002613222721f35d43170497363813bf19835b2050ac4444031d4a597f324")},
+                {158897, uint256S("0x00000000003ff3cda9983bbaf2167d376fabda3d4a76f611eee3045e9eaaf016")},
+                {158898, uint256S("0x000000000033c19f9bb92b586685e41229036657bdce6021d536b850c959808d")},
+                {158899, uint256S("0x000000000031e0e4f91c38188c183e286ef4de52d516aed15d5c338aebf5fbef")},
             }
         };
 
         chainTxData = ChainTxData{
-           1602749454,          // * UNIX timestamp of last known number of transactions (Block 1344000)
-           476,                 // * total number of transactions between genesis and that timestamp
+           1613168372,          // * UNIX timestamp of last known number of transactions (Block )
+           241160,                 // * total number of transactions between genesis and that timestamp
                                 //   (the tx=... number in the SetBestChain debug.log lines)
-           0.01680314793151122  // * estimated number of transactions per second after that timestamp
+           0.02384759902281304  // * estimated number of transactions per second after that timestamp
         };
     }
 };
@@ -535,6 +539,7 @@ public:
         consensus.DIP0003EnforcementHeight = 7300;
         consensus.DIP0003EnforcementHash = uint256S("");
         consensus.DIP0008Height = 7880; // 000000000e9329d964d80e7dab2e704b43b6bd2b91fea1e9315d38932e55fb55
+        consensus.nCollateralNewHeight = 170;
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
@@ -713,7 +718,8 @@ public:
         consensus.DIP0003EnforcementHeight = 2; // DIP0003 activated immediately on devnet
         consensus.DIP0003EnforcementHash = uint256();
         consensus.DIP0008Height = 2; // DIP0008 activated immediately on devnet
-        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
+        consensus.nCollateralNewHeight = 170; 
+       consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
         consensus.fPowAllowMinDifficultyBlocks = true;
@@ -889,6 +895,7 @@ public:
         consensus.DIP0003EnforcementHeight = 500;
         consensus.DIP0003EnforcementHash = uint256();
         consensus.DIP0008Height = 432;
+        consensus.nCollateralNewHeight = 170;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes

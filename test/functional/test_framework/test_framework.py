@@ -502,9 +502,12 @@ class BitcoinTestFramework():
         for i in range(self.num_nodes):
             initialize_datadir(self.options.tmpdir, i)
 
-MASTERNODE_COLLATERAL = 1000
-
-
+   if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight){
+    MASTERNODE_COLLATERAL = 15000
+      }
+      else{
+     MASTERNODE_COLLATERAL = 1000
+      }
 class MasternodeInfo:
     def __init__(self, proTxHash, ownerAddr, votingAddr, pubKeyOperator, keyOperator, collateral_address, collateral_txid, collateral_vout):
         self.proTxHash = proTxHash
