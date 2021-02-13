@@ -1,5 +1,5 @@
 /**
-Copyright (c) 2020 The Dash Core developers
+Copyright (c) 2020 The Xazab Core developers
 Distributed under the MIT/X11 software license, see the accompanying
 file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -41,12 +41,10 @@ Loaded in GUIUtil::loadStyleSheet() in guitil.cpp.
 Common stuff
 ******************************************************/
 
-WalletFrame,
-QDialog {
-    background-color: #323233;
-}
-
-QMessageBox {
+QDialog,
+QMainWindow,
+QMessageBox
+WalletFrame {
     background-color: #323233;
 }
 

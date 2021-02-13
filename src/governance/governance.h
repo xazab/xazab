@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef GOVERNANCE_H
-#define GOVERNANCE_H
+#ifndef BITCOIN_GOVERNANCE_GOVERNANCE_H
+#define BITCOIN_GOVERNANCE_GOVERNANCE_H
 
 #include <bloom.h>
 #include <cachemap.h>
@@ -291,7 +291,7 @@ public:
     void SyncSingleObjVotes(CNode* pnode, const uint256& nProp, const CBloomFilter& filter, CConnman& connman);
     void SyncObjects(CNode* pnode, CConnman& connman) const;
 
-    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
+    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman, bool enable_bip61);
 
     void DoMaintenance(CConnman& connman);
 
@@ -432,4 +432,6 @@ private:
 
 };
 
-#endif
+bool AreSuperblocksEnabled();
+
+#endif // BITCOIN_GOVERNANCE_GOVERNANCE_H

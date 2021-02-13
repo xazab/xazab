@@ -59,11 +59,7 @@ bool CPrivateSendQueue::Sign()
 
 bool CPrivateSendQueue::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
-    uint256 hash = GetSignatureHash();
-
-    CBLSSignature sig;
-    sig.SetBuf(vchSig);
-    if (!sig.IsValid() || !sig.VerifyInsecure(blsPubKey, hash)) {
+    if (!CBLSSignature(vchSig).VerifyInsecure(blsPubKey, GetSignatureHash())) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendQueue::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
@@ -109,11 +105,7 @@ bool CPrivateSendBroadcastTx::Sign()
 
 bool CPrivateSendBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) const
 {
-    uint256 hash = GetSignatureHash();
-
-    CBLSSignature sig;
-    sig.SetBuf(vchSig);
-    if (!sig.IsValid() || !sig.VerifyInsecure(blsPubKey, hash)) {
+    if (!CBLSSignature(vchSig).VerifyInsecure(blsPubKey, GetSignatureHash())) {
         LogPrint(BCLog::PRIVATESEND, "CPrivateSendBroadcastTx::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
@@ -121,7 +113,7 @@ bool CPrivateSendBroadcastTx::CheckSignature(const CBLSPublicKey& blsPubKey) con
     return true;
 }
 
-bool CPrivateSendBroadcastTx::IsExpired(const CBlockIndex* pindex)
+bool CPrivateSendBroadcastTx::IsExpired(const CBlockIndex* pindex) const
 {
     // expire confirmed DSTXes after ~1h since confirmation or chainlocked confirmation
     if (nConfirmedHeight == -1 || pindex->nHeight < nConfirmedHeight) return false; // not mined yet
@@ -348,7 +340,7 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
         nValueOut += txout.nValue;
 
         if (!txout.scriptPubKey.IsPayToPublicKeyHash() && !txout.scriptPubKey.IsUnspendable()) {
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- Invalid Script, txCollateral=%s", txCollateral.ToString());
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- Invalid Script, txCollateral=%s", txCollateral.ToString()); /* Continued */
             return false;
         }
     }
@@ -365,18 +357,18 @@ bool CPrivateSend::IsCollateralValid(const CTransaction& txCollateral)
         } else if (GetUTXOCoin(txin.prevout, coin)) {
             nValueIn += coin.out.nValue;
         } else {
-            LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- Unknown inputs in collateral transaction, txCollateral=%s", txCollateral.ToString());
+            LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- Unknown inputs in collateral transaction, txCollateral=%s", txCollateral.ToString()); /* Continued */
             return false;
         }
     }
 
     //collateral transactions are required to pay out a small fee to the miners
     if (nValueIn - nValueOut < GetCollateralAmount()) {
-        LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- did not include enough fees in transaction: fees: %d, txCollateral=%s", nValueOut - nValueIn, txCollateral.ToString());
+        LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- did not include enough fees in transaction: fees: %d, txCollateral=%s", nValueOut - nValueIn, txCollateral.ToString()); /* Continued */
         return false;
     }
 
-    LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- %s", txCollateral.ToString());
+    LogPrint(BCLog::PRIVATESEND, "CPrivateSend::IsCollateralValid -- %s", txCollateral.ToString()); /* Continued */
 
     {
         LOCK(cs_main);

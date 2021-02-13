@@ -2,8 +2,8 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef SPORK_H
-#define SPORK_H
+#ifndef BITCOIN_SPORK_H
+#define BITCOIN_SPORK_H
 
 #include <hash.h>
 #include <net.h>
@@ -27,7 +27,6 @@ enum SporkId : int32_t {
     SPORK_17_QUORUM_DKG_ENABLED                            = 10016,
     SPORK_19_CHAINLOCKS_ENABLED                            = 10018,
     SPORK_21_QUORUM_ALL_CONNECTED                          = 10020,
-    SPORK_22_PS_MORE_PARTICIPANTS                          = 10021,
 
     SPORK_INVALID                                          = -1,
 };
@@ -191,6 +190,7 @@ public:
         // we don't serialize pubkey ids because pubkeys should be
         // hardcoded or be setted with cmdline or options, should
         // not reuse pubkeys from previous xazabd run
+        LOCK(cs);
         READWRITE(mapSporksByHash);
         READWRITE(mapSporksActive);
         // we don't serialize private key to prevent its leakage
@@ -299,4 +299,4 @@ public:
     std::string ToString() const;
 };
 
-#endif
+#endif // BITCOIN_SPORK_H

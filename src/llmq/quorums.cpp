@@ -1,10 +1,9 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/quorums.h>
 #include <llmq/quorums_blockprocessor.h>
-#include <llmq/quorums_commitment.h>
 #include <llmq/quorums_dkgsession.h>
 #include <llmq/quorums_dkgsessionmgr.h>
 #include <llmq/quorums_init.h>
@@ -85,7 +84,7 @@ CBLSPublicKey CQuorum::GetPubKeyShare(size_t memberIdx) const
         return CBLSPublicKey();
     }
     auto& m = members[memberIdx];
-    return blsCache.BuildPubKeyShare(m->proTxHash, quorumVvec, CBLSId::FromHash(m->proTxHash));
+    return blsCache.BuildPubKeyShare(m->proTxHash, quorumVvec, CBLSId(m->proTxHash));
 }
 
 CBLSSecretKey CQuorum::GetSkShare() const
@@ -339,13 +338,12 @@ CQuorumCPtr CQuorumManager::GetQuorum(Consensus::LLMQType llmqType, const uint25
     CBlockIndex* pindexQuorum;
     {
         LOCK(cs_main);
-        auto quorumIt = mapBlockIndex.find(quorumHash);
 
-        if (quorumIt == mapBlockIndex.end()) {
+        pindexQuorum = LookupBlockIndex(quorumHash);
+        if (!pindexQuorum) {
             LogPrint(BCLog::LLMQ, "CQuorumManager::%s -- block %s not found\n", __func__, quorumHash.ToString());
             return nullptr;
         }
-        pindexQuorum = quorumIt->second;
     }
     return GetQuorum(llmqType, pindexQuorum);
 }

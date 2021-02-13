@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2020 The Xazab Core developers
+// Copyright (c) 2018-2020 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef XAZAB_QUORUMS_SIGNING_H
-#define XAZAB_QUORUMS_SIGNING_H
+#ifndef BITCOIN_LLMQ_QUORUMS_SIGNING_H
+#define BITCOIN_LLMQ_QUORUMS_SIGNING_H
 
 #include <llmq/quorums.h>
 
@@ -104,7 +104,7 @@ private:
 class CRecoveredSigsListener
 {
 public:
-    virtual ~CRecoveredSigsListener() {}
+    virtual ~CRecoveredSigsListener() = default;
 
     virtual void HandleNewRecoveredSig(const CRecoveredSig& recoveredSig) = 0;
 };
@@ -155,7 +155,7 @@ public:
 
 private:
     void ProcessMessageRecoveredSig(CNode* pfrom, const CRecoveredSig& recoveredSig, CConnman& connman);
-    bool PreVerifyRecoveredSig(NodeId nodeId, const CRecoveredSig& recoveredSig, bool& retBan);
+    static bool PreVerifyRecoveredSig(NodeId nodeId, const CRecoveredSig& recoveredSig, bool& retBan);
 
     void CollectPendingRecoveredSigsToVerify(size_t maxUniqueSessions,
             std::unordered_map<NodeId, std::list<CRecoveredSig>>& retSigShares,
@@ -180,15 +180,15 @@ public:
     bool HasVotedOnId(Consensus::LLMQType llmqType, const uint256& id);
     bool GetVoteForId(Consensus::LLMQType llmqType, const uint256& id, uint256& msgHashRet);
 
-    std::vector<CQuorumCPtr> GetActiveQuorumSet(Consensus::LLMQType llmqType, int signHeight);
-    CQuorumCPtr SelectQuorumForSigning(Consensus::LLMQType llmqType, const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
+    static std::vector<CQuorumCPtr> GetActiveQuorumSet(Consensus::LLMQType llmqType, int signHeight);
+    static CQuorumCPtr SelectQuorumForSigning(Consensus::LLMQType llmqType, const uint256& selectionHash, int signHeight = -1 /*chain tip*/, int signOffset = SIGN_HEIGHT_OFFSET);
 
     // Verifies a recovered sig that was signed while the chain tip was at signedAtTip
-    bool VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig);
+    static bool VerifyRecoveredSig(Consensus::LLMQType llmqType, int signedAtHeight, const uint256& id, const uint256& msgHash, const CBLSSignature& sig);
 };
 
 extern CSigningManager* quorumSigningManager;
 
 } // namespace llmq
 
-#endif //XAZAB_QUORUMS_SIGNING_H
+#endif // BITCOIN_LLMQ_QUORUMS_SIGNING_H

@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -187,9 +187,7 @@ CSigSharesManager::CSigSharesManager()
     workInterrupt.reset();
 }
 
-CSigSharesManager::~CSigSharesManager()
-{
-}
+CSigSharesManager::~CSigSharesManager() = default;
 
 void CSigSharesManager::StartWorkerThread()
 {
@@ -555,8 +553,8 @@ bool CSigSharesManager::PreVerifyBatchedSigShares(NodeId nodeId, const CSigShare
 
     std::unordered_set<uint16_t> dupMembers;
 
-    for (size_t i = 0; i < batchedSigShares.sigShares.size(); i++) {
-        auto quorumMember = batchedSigShares.sigShares[i].first;
+    for (const auto& sigShare : batchedSigShares.sigShares) {
+        auto quorumMember = sigShare.first;
         if (!dupMembers.emplace(quorumMember).second) {
             retBan = true;
             return false;
@@ -756,7 +754,7 @@ void CSigSharesManager::ProcessSigShare(NodeId nodeId, const CSigShare& sigShare
             return;
         }
         if (!CLLMQUtils::IsAllMembersConnectedEnabled(llmqType)) {
-            sigSharesToAnnounce.Add(sigShare.GetKey(), true);
+            sigSharesQueuedToAnnounce.Add(sigShare.GetKey(), true);
         }
 
         // Update the time we've seen the last sigShare
@@ -809,7 +807,7 @@ void CSigSharesManager::TryRecoverSig(const CQuorumCPtr& quorum, const uint256& 
         for (auto it = sigShares->begin(); it != sigShares->end() && sigSharesForRecovery.size() < quorum->params.threshold; ++it) {
             auto& sigShare = it->second;
             sigSharesForRecovery.emplace_back(sigShare.sigShare.Get());
-            idsForRecovery.emplace_back(CBLSId::FromHash(quorum->members[sigShare.quorumMember]->proTxHash));
+            idsForRecovery.emplace_back(quorum->members[sigShare.quorumMember]->proTxHash);
         }
 
         // check if we can recover the final signature
@@ -1076,7 +1074,7 @@ void CSigSharesManager::CollectSigSharesToAnnounce(std::unordered_map<NodeId, st
 
     std::unordered_map<std::pair<Consensus::LLMQType, uint256>, std::unordered_set<NodeId>, StaticSaltedHasher> quorumNodesMap;
 
-    this->sigSharesToAnnounce.ForEach([&](const SigShareKey& sigShareKey, bool) {
+    sigSharesQueuedToAnnounce.ForEach([&](const SigShareKey& sigShareKey, bool) {
         auto& signHash = sigShareKey.first;
         auto quorumMember = sigShareKey.second;
         const CSigShare* sigShare = sigShares.Get(sigShareKey);
@@ -1119,7 +1117,7 @@ void CSigSharesManager::CollectSigSharesToAnnounce(std::unordered_map<NodeId, st
     });
 
     // don't announce these anymore
-    this->sigSharesToAnnounce.Clear();
+    sigSharesQueuedToAnnounce.Clear();
 }
 
 bool CSigSharesManager::SendMessages()
@@ -1446,7 +1444,7 @@ void CSigSharesManager::RemoveSigSharesForSession(const uint256& signHash)
     }
 
     sigSharesRequested.EraseAllForSignHash(signHash);
-    sigSharesToAnnounce.EraseAllForSignHash(signHash);
+    sigSharesQueuedToAnnounce.EraseAllForSignHash(signHash);
     sigShares.EraseAllForSignHash(signHash);
     signedSessions.erase(signHash);
     timeSeenForSessions.erase(signHash);
@@ -1619,7 +1617,7 @@ void CSigSharesManager::ForceReAnnouncement(const CQuorumCPtr& quorum, Consensus
     if (sigs) {
         for (auto& p : *sigs) {
             // re-announce every sigshare to every node
-            sigSharesToAnnounce.Add(std::make_pair(signHash, p.first), true);
+            sigSharesQueuedToAnnounce.Add(std::make_pair(signHash, p.first), true);
         }
     }
     for (auto& p : nodeStates) {

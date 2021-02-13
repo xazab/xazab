@@ -518,6 +518,22 @@
           <number>4</number>
          </property>
          <item>
+          <widget class="QLabel" name="WalletSelectorLabel">
+           <property name="text">
+            <string>Wallet: </string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="WalletSelector">
+           <item>
+            <property name="text">
+             <string>(none)</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
           <spacer name="horizontalSpacer">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
@@ -581,35 +597,9 @@
           <number>3</number>
          </property>
          <item>
-          <widget class="QPushButton" name="promptIcon">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>16</width>
-             <height>24</height>
-            </size>
-           </property>
+          <widget class="QLabel" name="promptLabel">
            <property name="text">
-            <string/>
-           </property>
-           <property name="icon">
-            <iconset>
-             <normaloff>:/icons/prompticon</normaloff>
-             <disabledoff>:/icons/prompticon</disabledoff>:/icons/prompticon</iconset>
-           </property>
-           <property name="iconSize">
-            <size>
-             <width>14</width>
-             <height>14</height>
-            </size>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-           <property name="flat">
-            <bool>true</bool>
+            <string notr="true"> &gt; </string>
            </property>
           </widget>
          </item>
@@ -1267,7 +1257,7 @@
         <string>Salvage wallet</string>
        </property>
       </widget>
-      <widget class="QPushButton" name="btn_rescan">
+      <widget class="QPushButton" name="btn_rescan1">
        <property name="geometry">
         <rect>
          <x>10</x>
@@ -1283,14 +1273,33 @@
         </size>
        </property>
        <property name="text">
-        <string>Rescan blockchain files</string>
+        <string>Rescan blockchain files 1</string>
+       </property>
+      </widget>
+      <widget class="QPushButton" name="btn_rescan2">
+       <property name="geometry">
+        <rect>
+         <x>10</x>
+         <y>200</y>
+         <width>301</width>
+         <height>23</height>
+        </rect>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>180</width>
+         <height>23</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Rescan blockchain files 2</string>
        </property>
       </widget>
       <widget class="QPushButton" name="btn_zapwallettxes1">
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>200</y>
+         <y>250</y>
          <width>301</width>
          <height>23</height>
         </rect>
@@ -1309,7 +1318,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>250</y>
+         <y>300</y>
          <width>301</width>
          <height>23</height>
         </rect>
@@ -1328,7 +1337,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>300</y>
+         <y>350</y>
          <width>301</width>
          <height>23</height>
         </rect>
@@ -1375,7 +1384,7 @@
         <bool>true</bool>
        </property>
       </widget>
-      <widget class="QLabel" name="label_repair_rescan">
+      <widget class="QLabel" name="label_repair_rescan1">
        <property name="geometry">
         <rect>
          <x>330</x>
@@ -1385,7 +1394,23 @@
         </rect>
        </property>
        <property name="text">
-        <string>-rescan: Rescan the block chain for missing wallet transactions.</string>
+        <string>-rescan=1: Rescan the block chain for missing wallet transactions starting from wallet creation time.</string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="QLabel" name="label_repair_rescan2">
+       <property name="geometry">
+        <rect>
+         <x>330</x>
+         <y>190</y>
+         <width>411</width>
+         <height>41</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>-rescan=2: Rescan the block chain for missing wallet transactions starting from genesis block.</string>
        </property>
        <property name="wordWrap">
         <bool>true</bool>
@@ -1395,7 +1420,7 @@
        <property name="geometry">
         <rect>
          <x>330</x>
-         <y>190</y>
+         <y>240</y>
          <width>411</width>
          <height>41</height>
         </rect>
@@ -1411,7 +1436,7 @@
        <property name="geometry">
         <rect>
          <x>330</x>
-         <y>240</y>
+         <y>290</y>
          <width>411</width>
          <height>41</height>
         </rect>
@@ -1427,7 +1452,7 @@
        <property name="geometry">
         <rect>
          <x>330</x>
-         <y>290</y>
+         <y>340</y>
          <width>411</width>
          <height>41</height>
         </rect>
@@ -1459,7 +1484,7 @@
        <property name="geometry">
         <rect>
          <x>10</x>
-         <y>350</y>
+         <y>400</y>
          <width>301</width>
          <height>23</height>
         </rect>
@@ -1472,7 +1497,7 @@
        <property name="geometry">
         <rect>
          <x>330</x>
-         <y>340</y>
+         <y>390</y>
          <width>411</width>
          <height>41</height>
         </rect>

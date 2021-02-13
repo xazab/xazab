@@ -1,9 +1,9 @@
-// Copyright (c) 2019-2020 The Xazab Core developers
+// Copyright (c) 2019-2020 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef XAZAB_QUORUMS_INSTANTSEND_H
-#define XAZAB_QUORUMS_INSTANTSEND_H
+#ifndef BITCOIN_LLMQ_QUORUMS_INSTANTSEND_H
+#define BITCOIN_LLMQ_QUORUMS_INSTANTSEND_H
 
 #include <llmq/quorums_signing.h>
 
@@ -57,7 +57,7 @@ public:
 
     void WriteInstantSendLockMined(const uint256& hash, int nHeight);
     void RemoveInstantSendLockMined(const uint256& hash, int nHeight);
-    void WriteInstantSendLockArchived(CDBBatch& batch, const uint256& hash, int nHeight);
+    static void WriteInstantSendLockArchived(CDBBatch& batch, const uint256& hash, int nHeight);
     std::unordered_map<uint256, CInstantSendLockPtr> RemoveConfirmedInstantSendLocks(int nUntilHeight);
     void RemoveArchivedInstantSendLocks(int nUntilHeight);
     bool HasArchivedInstantSendLock(const uint256& islockHash);
@@ -135,11 +135,10 @@ public:
 
     void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
     void ProcessMessageInstantSendLock(CNode* pfrom, const CInstantSendLock& islock, CConnman& connman);
-    bool PreVerifyInstantSendLock(NodeId nodeId, const CInstantSendLock& islock, bool& retBan);
+    static bool PreVerifyInstantSendLock(NodeId nodeId, const CInstantSendLock& islock, bool& retBan);
     bool ProcessPendingInstantSendLocks();
     std::unordered_set<uint256> ProcessPendingInstantSendLocks(int signOffset, const std::unordered_map<uint256, std::pair<NodeId, CInstantSendLock>, StaticSaltedHasher>& pend, bool ban);
     void ProcessInstantSendLock(NodeId from, const uint256& hash, const CInstantSendLock& islock);
-    void UpdateWalletTransaction(const CTransactionRef& tx, const CInstantSendLock& islock);
 
     void ProcessNewTransaction(const CTransactionRef& tx, const CBlockIndex* pindex, bool allowReSigning);
     void TransactionAddedToMempool(const CTransactionRef& tx);
@@ -159,7 +158,7 @@ public:
     void RemoveMempoolConflictsForLock(const uint256& hash, const CInstantSendLock& islock);
     void ResolveBlockConflicts(const uint256& islockHash, const CInstantSendLock& islock);
     void RemoveChainLockConflictingLock(const uint256& islockHash, const CInstantSendLock& islock);
-    void AskNodesForLockedTx(const uint256& txid);
+    static void AskNodesForLockedTx(const uint256& txid);
     bool ProcessPendingRetryLockTxs();
 
     bool AlreadyHave(const CInv& inv);
@@ -174,7 +173,8 @@ public:
 extern CInstantSendManager* quorumInstantSendManager;
 
 bool IsInstantSendEnabled();
+bool RejectConflictingBlocks();
 
 } // namespace llmq
 
-#endif//XAZAB_QUORUMS_INSTANTSEND_H
+#endif // BITCOIN_LLMQ_QUORUMS_INSTANTSEND_H

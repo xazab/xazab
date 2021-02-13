@@ -28,7 +28,8 @@
 #include <privatesend/privatesend.h>
 #include <evo/deterministicmns.h>
 
-#include <memory>
+#include <statsd_client.h>
+
 #ifdef WIN32
 #include <string.h>
 #else
@@ -41,6 +42,10 @@
 
 #ifdef USE_EPOLL
 #include <sys/epoll.h>
+#endif
+
+#ifdef USE_KQUEUE
+#include <sys/event.h>
 #endif
 
 #ifdef USE_UPNP
@@ -60,12 +65,13 @@
 // We add a random period time (0 to 1 seconds) to feeler connections to prevent synchronization.
 #define FEELER_SLEEP_WINDOW 1
 
-#if !defined(HAVE_MSG_NOSIGNAL)
+// MSG_NOSIGNAL is not available on some platforms, if it doesn't exist define it as 0
+#if !defined(MSG_NOSIGNAL)
 #define MSG_NOSIGNAL 0
 #endif
 
 // MSG_DONTWAIT is not available on some platforms, if it doesn't exist define it as 0
-#if !defined(HAVE_MSG_DONTWAIT)
+#if !defined(MSG_DONTWAIT)
 #define MSG_DONTWAIT 0
 #endif
 
@@ -334,7 +340,7 @@ CNode* CConnman::FindNode(const CNetAddr& ip, bool fExcludeDisconnecting)
         if (fExcludeDisconnecting && pnode->fDisconnect) {
             continue;
         }
-        if ((CNetAddr)pnode->addr == ip) {
+        if (static_cast<CNetAddr>(pnode->addr) == ip) {
             return pnode;
         }
     }
@@ -348,7 +354,7 @@ CNode* CConnman::FindNode(const CSubNet& subNet, bool fExcludeDisconnecting)
         if (fExcludeDisconnecting && pnode->fDisconnect) {
             continue;
         }
-        if (subNet.Match((CNetAddr)pnode->addr)) {
+        if (subNet.Match(static_cast<CNetAddr>(pnode->addr))) {
             return pnode;
         }
     }
@@ -376,7 +382,7 @@ CNode* CConnman::FindNode(const CService& addr, bool fExcludeDisconnecting)
         if (fExcludeDisconnecting && pnode->fDisconnect) {
             continue;
         }
-        if ((CService)pnode->addr == addr) {
+        if (static_cast<CService>(pnode->addr) == addr) {
             return pnode;
         }
     }
@@ -409,7 +415,7 @@ static CAddress GetBindAddress(SOCKET sock)
     return addr_bind;
 }
 
-CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure)
+CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCountFailure, bool manual_connection)
 {
     if (pszDest == nullptr) {
         bool fAllowLocal = Params().AllowMultiplePorts() && addrConnect.GetPort() != GetListenPort();
@@ -418,7 +424,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         }
 
         // Look for an existing connection
-        CNode* pnode = FindNode((CService)addrConnect);
+        CNode* pnode = FindNode(static_cast<CService>(addrConnect));
         if (pnode)
         {
             LogPrintf("Failed to open new connection, already connected\n");
@@ -443,7 +449,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
         if (Lookup(pszDest, resolved,  default_port, fNameLookup && !HaveNameProxy(), 256) && !resolved.empty()) {
             addrConnect = CAddress(resolved[GetRand(resolved.size())], NODE_NONE);
             if (!addrConnect.IsValid()) {
-                LogPrint(BCLog::NET, "Resolver returned invalid address %s for %s", addrConnect.ToString(), pszDest);
+                LogPrint(BCLog::NET, "Resolver returned invalid address %s for %s\n", addrConnect.ToString(), pszDest);
                 return nullptr;
             }
             // It is possible that we already have a connection to the IP/port pszDest resolved to.
@@ -451,7 +457,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
             // Also store the name we used to connect in that CNode, so that future FindNode() calls to that
             // name catch this early.
             LOCK(cs_vNodes);
-            CNode* pnode = FindNode((CService)addrConnect);
+            CNode* pnode = FindNode(static_cast<CService>(addrConnect));
             if (pnode)
             {
                 pnode->MaybeSetAddrName(std::string(pszDest));
@@ -480,7 +486,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
             if (hSocket == INVALID_SOCKET) {
                 return nullptr;
             }
-            connected = ConnectSocketDirectly(addrConnect, hSocket, nConnectTimeout);
+            connected = ConnectSocketDirectly(addrConnect, hSocket, nConnectTimeout, manual_connection);
         }
         if (!proxyConnectionFailed) {
             // If a connection to the node was attempted, and failure (if any) is not caused by a problem connecting to
@@ -508,6 +514,7 @@ CNode* CConnman::ConnectNode(CAddress addrConnect, const char *pszDest, bool fCo
     CAddress addr_bind = GetBindAddress(hSocket);
     CNode* pnode = new CNode(id, nLocalServices, GetBestHeight(), hSocket, addrConnect, CalculateKeyedNetGroup(addrConnect), nonce, addr_bind, pszDest ? pszDest : "", false);
     pnode->AddRef();
+    statsClient.inc("peers.connect", 1.0f);
 
     return pnode;
 }
@@ -560,6 +567,7 @@ void CNode::CloseSocketDisconnect(CConnman* connman)
 
     LogPrint(BCLog::NET, "disconnecting peer=%d\n", id);
     CloseSocket(hSocket);
+    statsClient.inc("peers.disconnect", 1.0f);
 }
 
 void CConnman::ClearBanned()
@@ -631,7 +639,7 @@ void CConnman::Ban(const CSubNet& subNet, const BanReason &banReason, int64_t ba
     {
         LOCK(cs_vNodes);
         for (CNode* pnode : vNodes) {
-            if (subNet.Match((CNetAddr)pnode->addr))
+            if (subNet.Match(static_cast<CNetAddr>(pnode->addr)))
                 pnode->fDisconnect = true;
         }
     }
@@ -861,6 +869,7 @@ bool CNode::ReceiveMsgBytes(const char *pch, unsigned int nBytes, bool& complete
                 i = mapRecvBytesPerMsgCmd.find(NET_MESSAGE_COMMAND_OTHER);
             assert(i != mapRecvBytesPerMsgCmd.end());
             i->second += msg.hdr.nMessageSize + CMessageHeader::HEADER_SIZE;
+            statsClient.count("bandwidth.message." + std::string(msg.hdr.pchCommand) + ".bytesReceived", msg.hdr.nMessageSize + CMessageHeader::HEADER_SIZE, 1.0f);
 
             msg.nTime = nTimeMicros;
             complete = true;
@@ -1402,18 +1411,79 @@ void CConnman::NotifyNumConnectionsChanged()
     if(vNodesSize != nPrevNodeCount) {
         nPrevNodeCount = vNodesSize;
         if(clientInterface)
-            clientInterface->NotifyNumConnectionsChanged(nPrevNodeCount);
+            clientInterface->NotifyNumConnectionsChanged(vNodesSize);
+
+        CalculateNumConnectionsChangedStats();
     }
+}
+
+void CConnman::CalculateNumConnectionsChangedStats()
+{
+    if (!gArgs.GetBoolArg("-statsenabled", DEFAULT_STATSD_ENABLE)) {
+        return;
+    }
+
+    // count various node attributes for statsD
+    int fullNodes = 0;
+    int spvNodes = 0;
+    int inboundNodes = 0;
+    int outboundNodes = 0;
+    int ipv4Nodes = 0;
+    int ipv6Nodes = 0;
+    int torNodes = 0;
+    mapMsgCmdSize mapRecvBytesMsgStats;
+    mapMsgCmdSize mapSentBytesMsgStats;
+    for (const std::string &msg : getAllNetMessageTypes()) {
+        mapRecvBytesMsgStats[msg] = 0;
+        mapSentBytesMsgStats[msg] = 0;
+    }
+    mapRecvBytesMsgStats[NET_MESSAGE_COMMAND_OTHER] = 0;
+    mapSentBytesMsgStats[NET_MESSAGE_COMMAND_OTHER] = 0;
+    LOCK(cs_vNodes);
+    for (const CNode* pnode : vNodes) {
+        for (const mapMsgCmdSize::value_type &i : pnode->mapRecvBytesPerMsgCmd)
+            mapRecvBytesMsgStats[i.first] += i.second;
+        for (const mapMsgCmdSize::value_type &i : pnode->mapSendBytesPerMsgCmd)
+            mapSentBytesMsgStats[i.first] += i.second;
+        if(pnode->fClient)
+            spvNodes++;
+        else
+            fullNodes++;
+        if(pnode->fInbound)
+            inboundNodes++;
+        else
+            outboundNodes++;
+        if(pnode->addr.IsIPv4())
+            ipv4Nodes++;
+        if(pnode->addr.IsIPv6())
+            ipv6Nodes++;
+        if(pnode->addr.IsTor())
+            torNodes++;
+        if(pnode->nPingUsecTime > 0)
+            statsClient.timing("peers.ping_us", pnode->nPingUsecTime, 1.0f);
+    }
+    for (const std::string &msg : getAllNetMessageTypes()) {
+        statsClient.gauge("bandwidth.message." + msg + ".totalBytesReceived", mapRecvBytesMsgStats[msg], 1.0f);
+        statsClient.gauge("bandwidth.message." + msg + ".totalBytesSent", mapSentBytesMsgStats[msg], 1.0f);
+    }
+    statsClient.gauge("peers.totalConnections", nPrevNodeCount, 1.0f);
+    statsClient.gauge("peers.spvNodeConnections", spvNodes, 1.0f);
+    statsClient.gauge("peers.fullNodeConnections", fullNodes, 1.0f);
+    statsClient.gauge("peers.inboundConnections", inboundNodes, 1.0f);
+    statsClient.gauge("peers.outboundConnections", outboundNodes, 1.0f);
+    statsClient.gauge("peers.ipv4Connections", ipv4Nodes, 1.0f);
+    statsClient.gauge("peers.ipv6Connections", ipv6Nodes, 1.0f);
+    statsClient.gauge("peers.torConnections", torNodes, 1.0f);
 }
 
 void CConnman::InactivityCheck(CNode *pnode)
 {
     int64_t nTime = GetSystemTimeInSeconds();
-    if (nTime - pnode->nTimeConnected > 60)
+    if (nTime - pnode->nTimeConnected > m_peer_connect_timeout)
     {
         if (pnode->nLastRecv == 0 || pnode->nLastSend == 0)
         {
-            LogPrint(BCLog::NET, "socket no message in first 60 seconds, %d %d from %d\n", pnode->nLastRecv != 0, pnode->nLastSend != 0, pnode->GetId());
+            LogPrint(BCLog::NET, "socket no message in first %i seconds, %d %d from %d\n", m_peer_connect_timeout, pnode->nLastRecv != 0, pnode->nLastSend != 0, pnode->GetId());
             pnode->fDisconnect = true;
         }
         else if (nTime - pnode->nLastSend > TIMEOUT_INTERVAL)
@@ -1421,7 +1491,7 @@ void CConnman::InactivityCheck(CNode *pnode)
             LogPrintf("socket sending timeout: %is\n", nTime - pnode->nLastSend);
             pnode->fDisconnect = true;
         }
-        else if (nTime - pnode->nLastRecv > (pnode->nVersion > BIP0031_VERSION ? TIMEOUT_INTERVAL : 90*60))
+        else if (nTime - pnode->nLastRecv > TIMEOUT_INTERVAL)
         {
             LogPrintf("socket receive timeout: %is\n", nTime - pnode->nLastRecv);
             pnode->fDisconnect = true;
@@ -1477,6 +1547,41 @@ bool CConnman::GenerateSelectSet(std::set<SOCKET> &recv_set, std::set<SOCKET> &s
 
     return !recv_set.empty() || !send_set.empty() || !error_set.empty();
 }
+
+#ifdef USE_KQUEUE
+void CConnman::SocketEventsKqueue(std::set<SOCKET> &recv_set, std::set<SOCKET> &send_set, std::set<SOCKET> &error_set, bool fOnlyPoll)
+{
+    const size_t maxEvents = 64;
+    struct kevent events[maxEvents];
+
+    struct timespec timeout;
+    timeout.tv_sec = fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS / 1000;
+    timeout.tv_nsec = (fOnlyPoll ? 0 : SELECT_TIMEOUT_MILLISECONDS % 1000) * 1000 * 1000;
+
+    wakeupSelectNeeded = true;
+    int n = kevent(kqueuefd, nullptr, 0, events, maxEvents, &timeout);
+    wakeupSelectNeeded = false;
+    if (n == -1) {
+        LogPrintf("kevent wait error\n");
+    } else if (n > 0) {
+        for (int i = 0; i < n; i++) {
+            auto& event = events[i];
+            if ((event.flags & EV_ERROR) || (event.flags & EV_EOF)) {
+                error_set.insert((SOCKET)event.ident);
+                continue;
+            }
+
+            if (event.filter == EVFILT_READ) {
+                recv_set.insert((SOCKET)event.ident);
+            }
+
+            if (event.filter == EVFILT_WRITE) {
+                send_set.insert((SOCKET)event.ident);
+            }
+        }
+    }
+}
+#endif
 
 #ifdef USE_EPOLL
 void CConnman::SocketEventsEpoll(std::set<SOCKET> &recv_set, std::set<SOCKET> &send_set, std::set<SOCKET> &error_set, bool fOnlyPoll)
@@ -1632,6 +1737,11 @@ void CConnman::SocketEventsSelect(std::set<SOCKET> &recv_set, std::set<SOCKET> &
 void CConnman::SocketEvents(std::set<SOCKET> &recv_set, std::set<SOCKET> &send_set, std::set<SOCKET> &error_set, bool fOnlyPoll)
 {
     switch (socketEventsMode) {
+#ifdef USE_KQUEUE
+        case SOCKETEVENTS_KQUEUE:
+            SocketEventsKqueue(recv_set, send_set, error_set, fOnlyPoll);
+            break;
+#endif
 #ifdef USE_EPOLL
         case SOCKETEVENTS_EPOLL:
             SocketEventsEpoll(recv_set, send_set, error_set, fOnlyPoll);
@@ -1941,8 +2051,8 @@ void CConnman::WakeSelect()
         return;
     }
 
-    char buf[1];
-    if (write(wakeupPipe[1], buf, 1) != 1) {
+    char buf{0};
+    if (write(wakeupPipe[1], &buf, sizeof(buf)) != 1) {
         LogPrint(BCLog::NET, "write to wakeupPipe failed\n");
     }
 #endif
@@ -1955,6 +2065,8 @@ void CConnman::WakeSelect()
 
 
 #ifdef USE_UPNP
+static CThreadInterrupt g_upnp_interrupt;
+static std::thread g_upnp_thread;
 void ThreadMapPort()
 {
     std::string port = strprintf("%u", GetListenPort());
@@ -2005,35 +2117,29 @@ void ThreadMapPort()
 
         std::string strDesc = "Xazab Core " + FormatFullVersion();
 
-        try {
-            while (true) {
+        do {
 #ifndef UPNPDISCOVER_SUCCESS
-                /* miniupnpc 1.5 */
-                r = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
-                                    port.c_str(), port.c_str(), lanaddr, strDesc.c_str(), "TCP", 0);
+            /* miniupnpc 1.5 */
+            r = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
+                                port.c_str(), port.c_str(), lanaddr, strDesc.c_str(), "TCP", 0);
 #else
-                /* miniupnpc 1.6 */
-                r = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
-                                    port.c_str(), port.c_str(), lanaddr, strDesc.c_str(), "TCP", 0, "0");
+            /* miniupnpc 1.6 */
+            r = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
+                                port.c_str(), port.c_str(), lanaddr, strDesc.c_str(), "TCP", 0, "0");
 #endif
 
-                if(r!=UPNPCOMMAND_SUCCESS)
-                    LogPrintf("AddPortMapping(%s, %s, %s) failed with code %d (%s)\n",
-                        port, port, lanaddr, r, strupnperror(r));
-                else
-                    LogPrintf("UPnP Port Mapping successful.\n");
+            if(r!=UPNPCOMMAND_SUCCESS)
+                LogPrintf("AddPortMapping(%s, %s, %s) failed with code %d (%s)\n",
+                    port, port, lanaddr, r, strupnperror(r));
+            else
+                LogPrintf("UPnP Port Mapping successful.\n");
+        }
+        while(g_upnp_interrupt.sleep_for(std::chrono::minutes(20)));
 
-                MilliSleep(20*60*1000); // Refresh every 20 minutes
-            }
-        }
-        catch (const boost::thread_interrupted&)
-        {
-            r = UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, port.c_str(), "TCP", 0);
-            LogPrintf("UPNP_DeletePortMapping() returned: %d\n", r);
-            freeUPNPDevlist(devlist); devlist = nullptr;
-            FreeUPNPUrls(&urls);
-            throw;
-        }
+        r = UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, port.c_str(), "TCP", 0);
+        LogPrintf("UPNP_DeletePortMapping() returned: %d\n", r);
+        freeUPNPDevlist(devlist); devlist = nullptr;
+        FreeUPNPUrls(&urls);
     } else {
         LogPrintf("No valid UPnP IGDs found\n");
         freeUPNPDevlist(devlist); devlist = nullptr;
@@ -2042,27 +2148,39 @@ void ThreadMapPort()
     }
 }
 
-void MapPort(bool fUseUPnP)
+void StartMapPort()
 {
-    static std::unique_ptr<boost::thread> upnp_thread;
-
-    if (fUseUPnP)
-    {
-        if (upnp_thread) {
-            upnp_thread->interrupt();
-            upnp_thread->join();
-        }
-        upnp_thread.reset(new boost::thread(boost::bind(&TraceThread<void (*)()>, "upnp", &ThreadMapPort)));
+    if (!g_upnp_thread.joinable()) {
+        assert(!g_upnp_interrupt);
+        g_upnp_thread = std::thread((std::bind(&TraceThread<void (*)()>, "upnp", &ThreadMapPort)));
     }
-    else if (upnp_thread) {
-        upnp_thread->interrupt();
-        upnp_thread->join();
-        upnp_thread.reset();
+}
+
+void InterruptMapPort()
+{
+    if(g_upnp_thread.joinable()) {
+        g_upnp_interrupt();
+    }
+}
+
+void StopMapPort()
+{
+    if(g_upnp_thread.joinable()) {
+        g_upnp_thread.join();
+        g_upnp_interrupt.reset();
     }
 }
 
 #else
-void MapPort(bool)
+void StartMapPort()
+{
+    // Intentionally left blank.
+}
+void InterruptMapPort()
+{
+    // Intentionally left blank.
+}
+void StopMapPort()
 {
     // Intentionally left blank.
 }
@@ -2275,7 +2393,6 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
         CAddress addrConnect;
 
         // Only connect out to one peer per network group (/16 for IPv4).
-        // Do this here so we don't have to critsect vNodes inside mapAddresses critsect.
         // This is only done for mainnet and testnet
         int nOutbound = 0;
         std::set<std::vector<unsigned char> > setConnected;
@@ -2328,13 +2445,20 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
             }
         }
 
+        addrman.ResolveCollisions();
+
         auto mnList = deterministicMNManager->GetListAtChainTip();
 
         int64_t nANow = GetAdjustedTime();
         int nTries = 0;
         while (!interruptNet)
         {
-            CAddrInfo addr = addrman.Select(fFeeler);
+            CAddrInfo addr = addrman.SelectTriedCollision();
+
+            // SelectTriedCollision returns an invalid address if it is empty.
+            if (!fFeeler || !addr.IsValid()) {
+                addr = addrman.Select(fFeeler);
+            }
 
             auto dmn = mnList.GetMNByService(addr);
             bool isMasternode = dmn != nullptr;
@@ -2466,7 +2590,7 @@ void CConnman::ThreadOpenAddedConnections()
         for (const AddedNodeInfo& info : vInfo) {
             if (!info.fConnected) {
                 if (!grant.TryAcquire()) {
-                    // If we've used up our semaphore and need a new one, lets not wait here since while we are waiting
+                    // If we've used up our semaphore and need a new one, let's not wait here since while we are waiting
                     // the addednodeinfo state might change.
                     break;
                 }
@@ -2645,8 +2769,8 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
         if (!fAllowLocal && IsLocal(addrConnect))
             return;
         // if multiple ports for same IP are allowed, search for IP:PORT match, otherwise search for IP-only match
-        if ((!Params().AllowMultiplePorts() && FindNode((CNetAddr)addrConnect)) ||
-            (Params().AllowMultiplePorts() && FindNode((CService)addrConnect)))
+        if ((!Params().AllowMultiplePorts() && FindNode(static_cast<CNetAddr>(addrConnect))) ||
+            (Params().AllowMultiplePorts() && FindNode(static_cast<CService>(addrConnect))))
             return;
     } else if (FindNode(std::string(pszDest)))
         return;
@@ -2660,7 +2784,7 @@ void CConnman::OpenNetworkConnection(const CAddress& addrConnect, bool fCountFai
     };
 
     LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- connecting to %s\n", __func__, getIpStr());
-    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure);
+    CNode* pnode = ConnectNode(addrConnect, pszDest, fCountFailure, manual_connection);
 
     if (!pnode) {
         LogPrint(BCLog::NET_NETCONN, "CConnman::%s -- ConnectNode failed for %s\n", __func__, getIpStr());
@@ -2727,7 +2851,7 @@ void CConnman::ThreadMessageHandler()
             // Send messages
             if (!fSkipSendMessagesForMasternodes || !pnode->fMasternode) {
                 LOCK(pnode->cs_sendProcessing);
-                m_msgproc->SendMessages(pnode, flagInterruptMsgProc);
+                m_msgproc->SendMessages(pnode);
             }
 
             if (flagInterruptMsgProc)
@@ -2810,6 +2934,19 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
         return false;
     }
 
+#ifdef USE_KQUEUE
+    if (socketEventsMode == SOCKETEVENTS_KQUEUE) {
+        struct kevent event;
+        EV_SET(&event, hListenSocket, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+        if (kevent(kqueuefd, &event, 1, nullptr, 0, nullptr) != 0) {
+            strError = strprintf(_("Error: failed to add socket to kqueuefd (kevent returned error %s)"), NetworkErrorString(WSAGetLastError()));
+            LogPrintf("%s\n", strError);
+            CloseSocket(hListenSocket);
+            return false;
+        }
+    }
+#endif
+
 #ifdef USE_EPOLL
     if (socketEventsMode == SOCKETEVENTS_EPOLL) {
         epoll_event event;
@@ -2832,7 +2969,7 @@ bool CConnman::BindListenPort(const CService &addrBind, std::string& strError, b
     return true;
 }
 
-void Discover(boost::thread_group& threadGroup)
+void Discover()
 {
     if (!fDiscover)
         return;
@@ -2948,7 +3085,8 @@ bool CConnman::InitBinds(const std::vector<CService>& binds, const std::vector<C
     if (binds.empty() && whiteBinds.empty()) {
         struct in_addr inaddr_any;
         inaddr_any.s_addr = INADDR_ANY;
-        fBound |= Bind(CService((in6_addr)IN6ADDR_ANY_INIT, GetListenPort()), BF_NONE);
+        struct in6_addr inaddr6_any = IN6ADDR_ANY_INIT;
+        fBound |= Bind(CService(inaddr6_any, GetListenPort()), BF_NONE);
         fBound |= Bind(CService(inaddr_any, GetListenPort()), !fBound ? BF_REPORT_ERROR : BF_NONE);
     }
     return fBound;
@@ -2968,6 +3106,16 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
         nMaxOutboundTotalBytesSentInCycle = 0;
         nMaxOutboundCycleStartTime = 0;
     }
+
+#ifdef USE_KQUEUE
+    if (socketEventsMode == SOCKETEVENTS_KQUEUE) {
+        kqueuefd = kqueue();
+        if (kqueuefd == -1) {
+            LogPrintf("kqueue failed\n");
+            return false;
+        }
+    }
+#endif
 
 #ifdef USE_EPOLL
     if (socketEventsMode == SOCKETEVENTS_EPOLL) {
@@ -3065,6 +3213,18 @@ bool CConnman::Start(CScheduler& scheduler, const Options& connOptions)
         if (fcntl(wakeupPipe[1], F_SETFL, fFlags | O_NONBLOCK) == -1) {
             LogPrint(BCLog::NET, "fcntl for O_NONBLOCK on wakeupPipe failed\n");
         }
+#ifdef USE_KQUEUE
+        if (socketEventsMode == SOCKETEVENTS_KQUEUE) {
+            struct kevent event;
+            EV_SET(&event, wakeupPipe[0], EVFILT_READ, EV_ADD, 0, 0, nullptr);
+            int r = kevent(kqueuefd, &event, 1, nullptr, 0, nullptr);
+            if (r != 0) {
+                LogPrint(BCLog::NET, "%s -- kevent(%d, %d, %d, ...) failed. error: %s\n", __func__,
+                         kqueuefd, EV_ADD, wakeupPipe[0], NetworkErrorString(WSAGetLastError()));
+                return false;
+            }
+        }
+#endif
 #ifdef USE_EPOLL
         if (socketEventsMode == SOCKETEVENTS_EPOLL) {
             epoll_event event;
@@ -3192,6 +3352,13 @@ void CConnman::Stop()
     }
     for (ListenSocket& hListenSocket : vhListenSocket)
         if (hListenSocket.socket != INVALID_SOCKET) {
+#ifdef USE_KQUEUE
+            if (socketEventsMode == SOCKETEVENTS_KQUEUE) {
+                struct kevent event;
+                EV_SET(&event, hListenSocket.socket, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+                kevent(kqueuefd, &event, 1, nullptr, 0, nullptr);
+            }
+#endif
 #ifdef USE_EPOLL
             if (socketEventsMode == SOCKETEVENTS_EPOLL) {
                 epoll_ctl(epollfd, EPOLL_CTL_DEL, hListenSocket.socket, nullptr);
@@ -3220,6 +3387,17 @@ void CConnman::Stop()
     semOutbound.reset();
     semAddnode.reset();
 
+#ifdef USE_KQUEUE
+    if (socketEventsMode == SOCKETEVENTS_KQUEUE && kqueuefd != -1) {
+#ifdef USE_WAKEUP_PIPE
+        struct kevent event;
+        EV_SET(&event, wakeupPipe[0], EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+        kevent(kqueuefd, &event, 1, nullptr, 0, nullptr);
+#endif
+        close(kqueuefd);
+    }
+    kqueuefd = -1;
+#endif
 #ifdef USE_EPOLL
     if (socketEventsMode == SOCKETEVENTS_EPOLL && epollfd != -1) {
 #ifdef USE_WAKEUP_PIPE
@@ -3521,12 +3699,16 @@ void CConnman::RecordBytesRecv(uint64_t bytes)
 {
     LOCK(cs_totalBytesRecv);
     nTotalBytesRecv += bytes;
+    statsClient.count("bandwidth.bytesReceived", bytes, 0.1f);
+    statsClient.gauge("bandwidth.totalBytesReceived", nTotalBytesRecv, 0.01f);
 }
 
 void CConnman::RecordBytesSent(uint64_t bytes)
 {
     LOCK(cs_totalBytesSent);
     nTotalBytesSent += bytes;
+    statsClient.count("bandwidth.bytesSent", bytes, 0.01f);
+    statsClient.gauge("bandwidth.totalBytesSent", nTotalBytesSent, 0.01f);
 
     uint64_t now = GetTime();
     if (nMaxOutboundCycleStartTime + nMaxOutboundTimeframe < now)
@@ -3735,6 +3917,8 @@ void CConnman::PushMessage(CNode* pnode, CSerializedNetMsg&& msg)
     size_t nMessageSize = msg.data.size();
     size_t nTotalSize = nMessageSize + CMessageHeader::HEADER_SIZE;
     LogPrint(BCLog::NET, "sending %s (%d bytes) peer=%d\n",  SanitizeString(msg.command.c_str()), nMessageSize, pnode->GetId());
+    statsClient.count("bandwidth.message." + SanitizeString(msg.command.c_str()) + ".bytesSent", nTotalSize, 1.0f);
+    statsClient.inc("message.sent." + SanitizeString(msg.command.c_str()), 1.0f);
 
     std::vector<unsigned char> serializedHeader;
     serializedHeader.reserve(CMessageHeader::HEADER_SIZE);
@@ -3869,6 +4053,24 @@ uint64_t CConnman::CalculateKeyedNetGroup(const CAddress& ad) const
 
 void CConnman::RegisterEvents(CNode *pnode)
 {
+#ifdef USE_KQUEUE
+    if (socketEventsMode != SOCKETEVENTS_KQUEUE) {
+        return;
+    }
+
+    LOCK(pnode->cs_hSocket);
+    assert(pnode->hSocket != INVALID_SOCKET);
+
+    struct kevent events[2];
+    EV_SET(&events[0], pnode->hSocket, EVFILT_READ, EV_ADD, 0, 0, nullptr);
+    EV_SET(&events[1], pnode->hSocket, EVFILT_WRITE, EV_ADD | EV_CLEAR, 0, 0, nullptr);
+
+    int r = kevent(kqueuefd, events, 2, nullptr, 0, nullptr);
+    if (r != 0) {
+        LogPrint(BCLog::NET, "%s -- kevent(%d, %d, %d, ...) failed. error: %s\n", __func__,
+                kqueuefd, EV_ADD, pnode->hSocket, NetworkErrorString(WSAGetLastError()));
+    }
+#endif
 #ifdef USE_EPOLL
     if (socketEventsMode != SOCKETEVENTS_EPOLL) {
         return;
@@ -3892,6 +4094,26 @@ void CConnman::RegisterEvents(CNode *pnode)
 
 void CConnman::UnregisterEvents(CNode *pnode)
 {
+#ifdef USE_KQUEUE
+    if (socketEventsMode != SOCKETEVENTS_KQUEUE) {
+        return;
+    }
+
+    LOCK(pnode->cs_hSocket);
+    if (pnode->hSocket == INVALID_SOCKET) {
+        return;
+    }
+
+    struct kevent events[2];
+    EV_SET(&events[0], pnode->hSocket, EVFILT_READ, EV_DELETE, 0, 0, nullptr);
+    EV_SET(&events[1], pnode->hSocket, EVFILT_WRITE, EV_DELETE, 0, 0, nullptr);
+
+    int r = kevent(kqueuefd, events, 2, nullptr, 0, nullptr);
+    if (r != 0) {
+        LogPrint(BCLog::NET, "%s -- kevent(%d, %d, %d, ...) failed. error: %s\n", __func__,
+                kqueuefd, EV_DELETE, pnode->hSocket, NetworkErrorString(WSAGetLastError()));
+    }
+#endif
 #ifdef USE_EPOLL
     if (socketEventsMode != SOCKETEVENTS_EPOLL) {
         return;

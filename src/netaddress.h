@@ -11,6 +11,7 @@
 
 #include <compat.h>
 #include <serialize.h>
+#include <span.h>
 
 #include <stdint.h>
 #include <string>
@@ -23,7 +24,7 @@ enum Network
     NET_UNROUTABLE = 0,
     NET_IPV4,
     NET_IPV6,
-    NET_TOR,
+    NET_ONION,
     NET_INTERNAL,
 
     NET_MAX,
@@ -34,7 +35,7 @@ class CNetAddr
 {
     protected:
         unsigned char ip[16]; // in network byte order
-        uint32_t scopeId; // for scoped/link-local ipv6 addresses
+        uint32_t scopeId{0}; // for scoped/link-local ipv6 addresses
 
     public:
         CNetAddr();
@@ -56,6 +57,7 @@ class CNetAddr
         bool SetInternal(const std::string& name);
 
         bool SetSpecial(const std::string &strName); // for Tor addresses
+        bool IsBindAny() const; // INADDR_ANY equivalent
         bool IsIPv4() const;    // IPv4 mapped address (::FFFF:0:0/96, 0.0.0.0/0)
         bool IsIPv6() const;    // IPv6 address (not mapped IPv4, not Tor)
         bool IsRFC1918() const; // IPv4 private networks (10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12)
@@ -96,7 +98,7 @@ class CNetAddr
 
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
-            READWRITE(FLATDATA(ip));
+            READWRITE(ip);
         }
 
         friend class CSubNet;
@@ -134,8 +136,8 @@ class CSubNet
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
             READWRITE(network);
-            READWRITE(FLATDATA(netmask));
-            READWRITE(FLATDATA(valid));
+            READWRITE(netmask);
+            READWRITE(valid);
         }
 };
 
@@ -143,7 +145,7 @@ class CSubNet
 class CService : public CNetAddr
 {
     protected:
-        unsigned short port; // host order
+        uint16_t port; // host order
 
     public:
         CService();
@@ -169,11 +171,8 @@ class CService : public CNetAddr
 
         template <typename Stream, typename Operation>
         inline void SerializationOp(Stream& s, Operation ser_action) {
-            READWRITE(FLATDATA(ip));
-            unsigned short portN = htons(port);
-            READWRITE(FLATDATA(portN));
-            if (ser_action.ForRead())
-                 port = ntohs(portN);
+            READWRITE(ip);
+            READWRITE(WrapBigEndian(port));
         }
 };
 

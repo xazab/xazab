@@ -16,7 +16,7 @@
 #include <qt/transactiontablemodel.h>
 #include <qt/walletmodel.h>
 
-#include <privatesend/privatesend-client.h>
+#include <interfaces/node.h>
 #include <ui_interface.h>
 
 #include <QCalendarWidget>
@@ -96,16 +96,13 @@ TransactionView::TransactionView(QWidget* parent) :
     hlayout->addWidget(typeWidget);
 
     search_widget = new QLineEdit(this);
-#if QT_VERSION >= 0x040700
     search_widget->setPlaceholderText(tr("Enter address, transaction id, or label to search"));
-#endif
     search_widget->setObjectName("search_widget");
     hlayout->addWidget(search_widget);
 
     amountWidget = new QLineEdit(this);
-#if QT_VERSION >= 0x040700
     amountWidget->setPlaceholderText(tr("Min amount"));
-#endif
+    amountWidget->setFixedWidth(125);
     amountWidget->setValidator(new QDoubleValidator(0, 1e20, 8, this));
     amountWidget->setObjectName("amountWidget");
     hlayout->addWidget(amountWidget);
@@ -198,8 +195,6 @@ TransactionView::TransactionView(QWidget* parent) :
     connect(editLabelAction, SIGNAL(triggered()), this, SLOT(editLabel()));
     connect(showDetailsAction, SIGNAL(triggered()), this, SLOT(showDetails()));
     connect(showAddressQRCodeAction, SIGNAL(triggered()), this, SLOT(showAddressQRCode()));
-
-    updatePrivateSendVisibility();
 }
 
 void TransactionView::setModel(WalletModel *_model)
@@ -258,7 +253,7 @@ void TransactionView::setModel(WalletModel *_model)
         }
 
         // show/hide column Watch-only
-        updateWatchOnlyColumn(_model->haveWatchOnly());
+        updateWatchOnlyColumn(_model->wallet().haveWatchOnly());
 
         // Watch-only signal
         connect(_model, SIGNAL(notifyWatchonlyChanged(bool)), this, SLOT(updateWatchOnlyColumn(bool)));
@@ -266,13 +261,14 @@ void TransactionView::setModel(WalletModel *_model)
         // Update transaction list with persisted settings
         chooseType(settings.value("transactionType").toInt());
         chooseDate(settings.value("transactionDate").toInt());
+
+        updatePrivateSendVisibility();
     }
 }
 
 void TransactionView::chooseDate(int idx)
 {
-    if(!transactionProxyModel)
-        return;
+    if (!transactionProxyModel) return;
 
     QSettings settings;
     QDate current = QDate::currentDate();
@@ -341,7 +337,7 @@ void TransactionView::chooseWatchonly(int idx)
     if(!transactionProxyModel)
         return;
     transactionProxyModel->setWatchOnlyFilter(
-        (TransactionFilterProxy::WatchOnlyFilter)watchOnlyWidget->itemData(idx).toInt());
+        static_cast<TransactionFilterProxy::WatchOnlyFilter>(watchOnlyWidget->itemData(idx).toInt()));
 }
 
 void TransactionView::changedSearch()
@@ -389,14 +385,14 @@ void TransactionView::exportClicked()
     // name, column, role
     writer.setModel(transactionProxyModel);
     writer.addColumn(tr("Confirmed"), 0, TransactionTableModel::ConfirmedRole);
-    if (model->haveWatchOnly())
+    if (model->wallet().haveWatchOnly())
         writer.addColumn(tr("Watch-only"), TransactionTableModel::Watchonly);
     writer.addColumn(tr("Date"), 0, TransactionTableModel::DateRole);
     writer.addColumn(tr("Type"), TransactionTableModel::Type, Qt::EditRole);
     writer.addColumn(tr("Label"), 0, TransactionTableModel::LabelRole);
     writer.addColumn(tr("Address"), 0, TransactionTableModel::AddressRole);
     writer.addColumn(BitcoinUnits::getAmountColumnTitle(model->getOptionsModel()->getDisplayUnit()), 0, TransactionTableModel::FormattedAmountRole);
-    writer.addColumn(tr("ID"), 0, TransactionTableModel::TxIDRole);
+    writer.addColumn(tr("ID"), 0, TransactionTableModel::TxHashRole);
 
     if(!writer.write()) {
         Q_EMIT message(tr("Exporting Failed"), tr("There was an error trying to save the transaction history to %1.").arg(filename),
@@ -420,7 +416,7 @@ void TransactionView::contextualMenu(const QPoint &point)
     // check if transaction can be abandoned, disable context menu action in case it doesn't
     uint256 hash;
     hash.SetHex(selection.at(0).data(TransactionTableModel::TxHashRole).toString().toStdString());
-    abandonAction->setEnabled(model->transactionCanBeAbandoned(hash));
+    abandonAction->setEnabled(model->wallet().transactionCanBeAbandoned(hash));
 
     if(index.isValid())
     {
@@ -440,7 +436,7 @@ void TransactionView::abandonTx()
     hash.SetHex(hashQStr.toStdString());
 
     // Abandon the wallet transaction over the walletModel
-    model->abandonTransaction(hash);
+    model->wallet().abandonTransaction(hash);
 
     // Update the table
     model->getTransactionTableModel()->updateTransaction(hashQStr, CT_UPDATED, false);
@@ -463,7 +459,7 @@ void TransactionView::copyAmount()
 
 void TransactionView::copyTxID()
 {
-    GUIUtil::copyEntryData(transactionView, 0, TransactionTableModel::TxIDRole);
+    GUIUtil::copyEntryData(transactionView, 0, TransactionTableModel::TxHashRole);
 }
 
 void TransactionView::copyTxHex()
@@ -544,9 +540,7 @@ void TransactionView::showAddressQRCode()
 
     QString strAddress = entries.at(0).data(TransactionTableModel::AddressRole).toString();
     QRDialog* dialog = new QRDialog(this);
-    OptionsModel *model = new OptionsModel(nullptr, false);
 
-    dialog->setModel(model);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setInfo(tr("QR code"), "xazab:"+strAddress, "", strAddress);
     dialog->show();
@@ -664,6 +658,32 @@ void TransactionView::focusTransaction(const QModelIndex &idx)
     transactionView->setFocus();
 }
 
+void TransactionView::focusTransaction(const uint256& txid)
+{
+    if (!transactionProxyModel)
+        return;
+
+    const QModelIndexList results = this->model->getTransactionTableModel()->match(
+        this->model->getTransactionTableModel()->index(0,0),
+        TransactionTableModel::TxHashRole,
+        QString::fromStdString(txid.ToString()), -1);
+
+    transactionView->setFocus();
+    transactionView->selectionModel()->clearSelection();
+    for (const QModelIndex& index : results) {
+        const QModelIndex targetIndex = transactionProxyModel->mapFromSource(index);
+        transactionView->selectionModel()->select(
+            targetIndex,
+            QItemSelectionModel::Rows | QItemSelectionModel::Select);
+        // Called once per destination to ensure all results are in view, unless
+        // transactions are not ordered by (ascending or descending) date.
+        transactionView->scrollTo(targetIndex);
+        // scrollTo() does not scroll far enough the first time when transactions
+        // are ordered by ascending date.
+        if (index == results[0]) transactionView->scrollTo(targetIndex);
+    }
+}
+
 // We override the virtual resizeEvent of the QWidget to adjust tables column
 // sizes as the tables width is proportional to the dialogs width.
 void TransactionView::resizeEvent(QResizeEvent* event)
@@ -712,7 +732,10 @@ void TransactionView::updateWatchOnlyColumn(bool fHaveWatchOnly)
 
 void TransactionView::updatePrivateSendVisibility()
 {
-    bool fEnabled = privateSendClient.fEnablePrivateSend;
+    if (model == nullptr) {
+        return;
+    }
+    bool fEnabled = model->node().privateSendOptions().isEnabled();
     // If PrivateSend gets enabled use "All" else "Most common"
     typeWidget->setCurrentIndex(fEnabled ? 0 : 1);
     // Hide all PrivateSend related filters

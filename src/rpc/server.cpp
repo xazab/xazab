@@ -25,14 +25,24 @@
 #include <memory> // for unique_ptr
 #include <unordered_map>
 
-static bool fRPCRunning = false;
-static bool fRPCInWarmup = true;
-static std::string rpcWarmupStatus("RPC server started");
 static CCriticalSection cs_rpcWarmup;
+static bool fRPCRunning = false;
+static bool fRPCInWarmup GUARDED_BY(cs_rpcWarmup) = true;
+static std::string rpcWarmupStatus GUARDED_BY(cs_rpcWarmup) = "RPC server started";
 /* Timer-creating functions */
 static RPCTimerInterface* timerInterface = nullptr;
 /* Map of name to timer. */
 static std::map<std::string, std::unique_ptr<RPCTimerBase> > deadlineTimers;
+
+// Any commands submitted by this user will have their commands filtered based on the platformAllowedCommands
+static const std::string defaultPlatformUser = "platform-user";
+
+static const std::map<std::string, std::set<std::string>> platformAllowedCommands{
+    {"getbestblockhash", {}},
+    {"getblockhash", {}},
+    {"getblockcount", {}},
+    {"getbestchainlock", {}},
+};
 
 static struct CRPCSignals
 {
@@ -52,12 +62,11 @@ void RPCServer::OnStopped(std::function<void ()> slot)
 }
 
 void RPCTypeCheck(const UniValue& params,
-                  const std::list<UniValue::VType>& typesExpected,
+                  const std::list<UniValueType>& typesExpected,
                   bool fAllowNull)
 {
     unsigned int i = 0;
-    for (UniValue::VType t : typesExpected)
-    {
+    for (const UniValueType& t : typesExpected) {
         if (params.size() <= i)
             break;
 
@@ -69,10 +78,10 @@ void RPCTypeCheck(const UniValue& params,
     }
 }
 
-void RPCTypeCheckArgument(const UniValue& value, UniValue::VType typeExpected)
+void RPCTypeCheckArgument(const UniValue& value, const UniValueType& typeExpected)
 {
-    if (value.type() != typeExpected) {
-        throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Expected type %s, got %s", uvTypeName(typeExpected), uvTypeName(value.type())));
+    if (!typeExpected.typeAny && value.type() != typeExpected.type) {
+        throw JSONRPCError(RPC_TYPE_ERROR, strprintf("Expected type %s, got %s", uvTypeName(typeExpected.type), uvTypeName(value.type())));
     }
 }
 
@@ -264,11 +273,11 @@ UniValue help(const JSONRPCRequest& jsonRequest)
 {
     if (jsonRequest.fHelp || jsonRequest.params.size() > 2)
         throw std::runtime_error(
-            "help ( \"command\" ) (\"subCommand\")\n"
+            "help ( \"command\" \"subcommand\" )\n"
             "\nList all commands, or get help for a specified command.\n"
             "\nArguments:\n"
             "1. \"command\"     (string, optional) The command to get help on\n"
-            "2. \"subCommand\"  (string, optional) The subcommand to get help on. Please not that not all subcommands support this at the moment\n"
+            "2. \"subcommand\"  (string, optional) The subcommand to get help on. Please note that not all subcommands support this at the moment\n"
             "\nResult:\n"
             "\"text\"     (string) The help text\n"
         );
@@ -325,7 +334,7 @@ static const CRPCCommand vRPCCommands[] =
 { //  category              name                      actor (function)         argNames
   //  --------------------- ------------------------  -----------------------  ----------
     /* Overall control/query calls */
-    { "control",            "help",                   &help,                   {"command"}  },
+    { "control",            "help",                   &help,                   {"command","subcommand"}  },
     { "control",            "stop",                   &stop,                   {"wait"}  },
     { "control",            "uptime",                 &uptime,                 {}  },
 };
@@ -431,7 +440,11 @@ void JSONRPCRequest::parse(const UniValue& valRequest)
         throw JSONRPCError(RPC_INVALID_REQUEST, "Method must be a string");
     strMethod = valMethod.get_str();
     if (strMethod != "getblocktemplate") {
-        LogPrint(BCLog::RPC, "ThreadRPCServer method=%s\n", SanitizeString(strMethod));
+        if (fLogIPs)
+            LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s peeraddr=%s\n", SanitizeString(strMethod),
+                this->authUser, this->peerAddr);
+        else
+            LogPrint(BCLog::RPC, "ThreadRPCServer method=%s user=%s\n", SanitizeString(strMethod), this->authUser);
     }
 
     // Parse params
@@ -546,6 +559,22 @@ UniValue CRPCTable::execute(const JSONRPCRequest &request) const
     const CRPCCommand *pcmd = tableRPC[request.strMethod];
     if (!pcmd)
         throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found");
+
+    // Before executing the RPC Command, filter commands from platform rpc user
+    if (fMasternodeMode && request.authUser == gArgs.GetArg("-platform-user", defaultPlatformUser)) {
+
+        auto it = platformAllowedCommands.find(request.strMethod);
+        // If the requested method is not available in platformAllowedCommands
+        if (it == platformAllowedCommands.end()) {
+            throw JSONRPCError(RPC_PLATFORM_RESTRICTION, strprintf("Method \"%s\" prohibited", request.strMethod));
+        }
+
+        const std::string strFirstParam = !request.params.empty() ? request.params[0].getValStr() : "";
+        // If there are any parameter restrictions for the requested method make sure the first paramter is allowed
+        if (!it->second.empty() && it->second.count(strFirstParam) == 0) {
+            throw JSONRPCError(RPC_PLATFORM_RESTRICTION, strprintf("Parameter \"%s\" prohibited for method \"%s\"", strFirstParam, request.strMethod));
+        }
+    }
 
     g_rpcSignals.PreCommand(*pcmd);
 

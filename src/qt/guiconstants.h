@@ -42,7 +42,7 @@ static const int MAX_URI_LENGTH = 255;
 #define SPINNER_FRAMES 90
 
 #define QAPP_ORG_NAME "Xazab"
-#define QAPP_ORG_DOMAIN "xazab.org"
+#define QAPP_ORG_DOMAIN "xazab.xyz"
 #define QAPP_APP_NAME_DEFAULT "Xazab-Qt"
 #define QAPP_APP_NAME_TESTNET "Xazab-Qt-testnet"
 #define QAPP_APP_NAME_DEVNET "Xazab-Qt-%s"

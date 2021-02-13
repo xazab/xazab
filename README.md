@@ -1,8 +1,8 @@
 Copyright (c) 2014-2020 The Dash Core developers
 
-Copyright (c)     -2020 The Xazab Core developers
+Copyright (c) 2020-2021 The Xazab Core developers
 
-Xazab Core staging tree 0.16
+Xazab Core staging tree 0.17
 ===========================
 
 `master:` [![Build Status](https://travis-ci.org/xazab/xazab.svg?branch=master)](https://travis-ci.org/xazab/xazab) `develop:` [![Build Status](https://travis-ci.org/xazab/xazab.svg?branch=develop)](https://travis-ci.org/xazab/xazab/branches)

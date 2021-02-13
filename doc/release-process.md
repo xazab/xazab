@@ -11,7 +11,7 @@ Before every minor and major release:
 * Update version in `configure.ac` (don't forget to set `CLIENT_VERSION_IS_RELEASE` to `true`)
 * Write release notes (see below)
 * Update `src/chainparams.cpp` nMinimumChainWork with information from the getblockchaininfo rpc.
-* Update `src/chainparams.cpp` defaultAssumeValid  with information from the getblockhash rpc.
+* Update `src/chainparams.cpp` defaultAssumeValid with information from the getblockhash rpc.
   - The selected value must not be orphaned so it may be useful to set the value two blocks back from the tip.
   - Testnet should be set some tens of thousands back from the tip due to reorgs there.
   - This update should be reviewed with a reindex-chainstate with assumevalid=0 to catch any defect
@@ -21,7 +21,8 @@ Before every major release:
 
 * Update hardcoded [seeds](/contrib/seeds/README.md). TODO: Give example PR for Xazab
 * Update [`BLOCK_CHAIN_SIZE`](/src/qt/intro.cpp) to the current size plus some overhead.
-* Update `src/chainparams.cpp` chainTxData with statistics about the transaction count and rate.
+* Update `src/chainparams.cpp` chainTxData with statistics about the transaction count and rate. Use the output of the RPC `getchaintxstats`, see
+  [this pull request](https://github.com/bitcoin/bitcoin/pull/12270) for an example. Reviewers can verify the results by running `getchaintxstats <window_block_count> <window_last_block_hash>` with the `window_block_count` and `window_last_block_hash` from your output.
 * Update version of `contrib/gitian-descriptors/*.yml`: usually one'd want to do this on master after branching off the release - but be sure to at least do it before a new major release
 
 ### First time / New builders
@@ -44,7 +45,7 @@ Write release notes. git shortlog helps a lot, for example:
 
 Generate list of authors:
 
-    git log --format='%aN' "$*" | sort -ui | sed -e 's/^/- /'
+    git log --format='- %aN' v(current version, e.g. 0.16.0)..v(new version, e.g. 0.16.1) | sort -fiu
 
 Tag version (or release candidate) in git
 
@@ -57,7 +58,7 @@ If you're using the automated script (found in [contrib/gitian-build.py](/contri
 Setup Gitian descriptors:
 
     pushd ./xazab
-    export SIGNER=(your Gitian key, ie bluematt, sipa, etc)
+    export SIGNER="(your Gitian key, ie UdjinM6, Pasta, etc)"
     export VERSION=(new version, e.g. 0.12.3)
     git fetch
     git checkout v${VERSION}
@@ -88,7 +89,9 @@ Create the OS X SDK tarball, see the [OS X readme](README_osx.md) for details, a
 
 ### Optional: Seed the Gitian sources cache and offline git repositories
 
-By default, Gitian will fetch source files as needed. To cache them ahead of time:
+NOTE: Gitian is sometimes unable to download files. If you have errors, try the step below.
+
+By default, Gitian will fetch source files as needed. To cache them ahead of time, make sure you have checked out the tag you want to build in xazab, then:
 
     pushd ./gitian-builder
     make -C ../xazab/depends download SOURCES_PATH=`pwd`/cache/common
@@ -108,16 +111,16 @@ The gbuild invocations below <b>DO NOT DO THIS</b> by default.
 
     pushd ./gitian-builder
     ./bin/gbuild --num-make 2 --memory 3000 --commit xazab=v${VERSION} ../xazab/contrib/gitian-descriptors/gitian-linux.yml
-    ./bin/gsign --signer $SIGNER --release ${VERSION}-linux --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-linux.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-linux --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-linux.yml
     mv build/out/xazab-*.tar.gz build/out/src/xazab-*.tar.gz ../
 
     ./bin/gbuild --num-make 2 --memory 3000 --commit xazab=v${VERSION} ../xazab/contrib/gitian-descriptors/gitian-win.yml
-    ./bin/gsign --signer $SIGNER --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-win.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-unsigned --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-win.yml
     mv build/out/xazab-*-win-unsigned.tar.gz inputs/xazab-win-unsigned.tar.gz
     mv build/out/xazab-*.zip build/out/xazab-*.exe ../
 
     ./bin/gbuild --num-make 2 --memory 3000 --commit xazab=v${VERSION} ../xazab/contrib/gitian-descriptors/gitian-osx.yml
-    ./bin/gsign --signer $SIGNER --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-osx.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-unsigned --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-osx.yml
     mv build/out/xazab-*-osx-unsigned.tar.gz inputs/xazab-osx-unsigned.tar.gz
     mv build/out/xazab-*.tar.gz build/out/xazab-*.dmg ../
     popd
@@ -150,9 +153,9 @@ Verify the signatures
 Commit your signature to gitian.sigs:
 
     pushd gitian.sigs
-    git add ${VERSION}-linux/${SIGNER}
-    git add ${VERSION}-win-unsigned/${SIGNER}
-    git add ${VERSION}-osx-unsigned/${SIGNER}
+    git add ${VERSION}-linux/"${SIGNER}"
+    git add ${VERSION}-win-unsigned/"${SIGNER}"
+    git add ${VERSION}-osx-unsigned/"${SIGNER}"
     git commit -a
     git push  # Assuming you can push to the gitian.sigs tree
     popd
@@ -197,7 +200,7 @@ Create (and optionally verify) the signed OS X binary:
 
     pushd ./gitian-builder
     ./bin/gbuild -i --commit signature=v${VERSION} ../xazab/contrib/gitian-descriptors/gitian-osx-signer.yml
-    ./bin/gsign --signer $SIGNER --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-osx-signer.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-osx-signed --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-osx-signer.yml
     ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-osx-signed ../xazab/contrib/gitian-descriptors/gitian-osx-signer.yml
     mv build/out/xazab-osx-signed.dmg ../xazab-${VERSION}-osx.dmg
     popd
@@ -206,7 +209,7 @@ Create (and optionally verify) the signed Windows binaries:
 
     pushd ./gitian-builder
     ./bin/gbuild -i --commit signature=v${VERSION} ../xazab/contrib/gitian-descriptors/gitian-win-signer.yml
-    ./bin/gsign --signer $SIGNER --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-win-signer.yml
+    ./bin/gsign --signer "$SIGNER" --release ${VERSION}-win-signed --destination ../gitian.sigs/ ../xazab/contrib/gitian-descriptors/gitian-win-signer.yml
     ./bin/gverify -v -d ../gitian.sigs/ -r ${VERSION}-win-signed ../xazab/contrib/gitian-descriptors/gitian-win-signer.yml
     mv build/out/xazab-*win64-setup.exe ../xazab-${VERSION}-win64-setup.exe
     mv build/out/xazab-*win32-setup.exe ../xazab-${VERSION}-win32-setup.exe
@@ -215,8 +218,8 @@ Create (and optionally verify) the signed Windows binaries:
 Commit your signature for the signed OS X/Windows binaries:
 
     pushd gitian.sigs
-    git add ${VERSION}-osx-signed/${SIGNER}
-    git add ${VERSION}-win-signed/${SIGNER}
+    git add ${VERSION}-osx-signed/"${SIGNER}"
+    git add ${VERSION}-win-signed/"${SIGNER}"
     git commit -a
     git push  # Assuming you can push to the gitian.sigs tree
     popd
@@ -263,7 +266,7 @@ Note: check that SHA256SUMS itself doesn't end up in SHA256SUMS, which is a spur
 
 - Announce the release:
 
-  - Release on Xazab forum: https://www.xazab.org/forum/topic/official-announcements.54/
+  - Release on Xazab forum: https://xazab.xyz/forum/topic/official-announcements.54/
 
   - Optionally Discord, twitter, reddit /r/Xazabpay, ... but this will usually sort out itself
 

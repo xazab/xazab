@@ -6,15 +6,12 @@
 #include <evo/providertx.h>
 #include <evo/specialtx.h>
 
-#include <base58.h>
 #include <chainparams.h>
 #include <clientversion.h>
 #include <core_io.h>
 #include <hash.h>
 #include <messagesigner.h>
 #include <script/standard.h>
-#include <streams.h>
-#include <univalue.h>
 #include <validation.h>
 
 template <typename ProTx>
@@ -138,7 +135,10 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
 
     if (!ptx.collateralOutpoint.hash.IsNull()) {
         Coin coin;
-        if (!GetUTXOCoin(ptx.collateralOutpoint, coin) || coin.out.nValue != 1000 * COIN) {
+    int masternode_collateral = 1000;
+    if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
+        masternode_collateral = 15000;
+        if (!GetUTXOCoin(ptx.collateralOutpoint, coin) || coin.out.nValue != masternode_collateral * COIN) {
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");
         }
 
@@ -158,7 +158,10 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
         if (ptx.collateralOutpoint.n >= tx.vout.size()) {
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-index");
         }
-        if (tx.vout[ptx.collateralOutpoint.n].nValue != 1000 * COIN) {
+        int masternode_collateral = 1000;
+     if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
+        masternode_collateral = 15000;
+        if (tx.vout[ptx.collateralOutpoint.n].nValue != masternode_collateral * COIN) {
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");
         }
 

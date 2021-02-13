@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef XAZAB_QUORUMS_SIGNING_SHARES_H
-#define XAZAB_QUORUMS_SIGNING_SHARES_H
+#ifndef BITCOIN_LLMQ_QUORUMS_SIGNING_SHARES_H
+#define BITCOIN_LLMQ_QUORUMS_SIGNING_SHARES_H
 
 #include <bls/bls.h>
 #include <chainparams.h>
@@ -382,7 +382,7 @@ private:
 
     std::unordered_map<NodeId, CSigSharesNodeState> nodeStates;
     SigShareMap<std::pair<NodeId, int64_t>> sigSharesRequested;
-    SigShareMap<bool> sigSharesToAnnounce;
+    SigShareMap<bool> sigSharesQueuedToAnnounce;
 
     std::vector<std::tuple<const CQuorumCPtr, uint256, uint256>> pendingSigns;
 
@@ -421,8 +421,8 @@ private:
     bool ProcessMessageBatchedSigShares(CNode* pfrom, const CBatchedSigShares& batchedSigShares, CConnman& connman);
     void ProcessMessageSigShare(NodeId fromId, const CSigShare& sigShare, CConnman& connman);
 
-    bool VerifySigSharesInv(NodeId from, Consensus::LLMQType llmqType, const CSigSharesInv& inv);
-    bool PreVerifyBatchedSigShares(NodeId nodeId, const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
+    static bool VerifySigSharesInv(NodeId from, Consensus::LLMQType llmqType, const CSigSharesInv& inv);
+    static bool PreVerifyBatchedSigShares(NodeId nodeId, const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, bool& retBan);
 
     void CollectPendingSigSharesToVerify(size_t maxUniqueSessions,
             std::unordered_map<NodeId, std::vector<CSigShare>>& retSigShares,
@@ -439,7 +439,7 @@ private:
 
 private:
     bool GetSessionInfoByRecvId(NodeId nodeId, uint32_t sessionId, CSigSharesNodeState::SessionInfo& retInfo);
-    CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, size_t idx);
+    static CSigShare RebuildSigShare(const CSigSharesNodeState::SessionInfo& session, const CBatchedSigShares& batchedSigShares, size_t idx);
 
     void Cleanup();
     void RemoveSigSharesForSession(const uint256& signHash);
@@ -460,4 +460,4 @@ extern CSigSharesManager* quorumSigSharesManager;
 
 } // namespace llmq
 
-#endif //XAZAB_QUORUMS_SIGNING_SHARES_H
+#endif // BITCOIN_LLMQ_QUORUMS_SIGNING_SHARES_H

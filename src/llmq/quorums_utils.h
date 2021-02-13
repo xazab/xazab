@@ -1,9 +1,9 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef XAZAB_QUORUMS_UTILS_H
-#define XAZAB_QUORUMS_UTILS_H
+#ifndef BITCOIN_LLMQ_QUORUMS_UTILS_H
+#define BITCOIN_LLMQ_QUORUMS_UTILS_H
 
 #include <consensus/params.h>
 #include <net.h>
@@ -12,8 +12,15 @@
 
 #include <vector>
 
+class VersionBitsCache;
+
 namespace llmq
 {
+
+// Use a separate cache instance instead of versionbitscache to avoid locking cs_main
+// and dealing with all kinds of deadlocks.
+extern CCriticalSection cs_llmq_vbc;
+extern VersionBitsCache llmq_versionbitscache;
 
 class CLLMQUtils
 {
@@ -41,6 +48,9 @@ public:
     static void AddQuorumProbeConnections(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& myProTxHash);
 
     static bool IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quorumHash);
+    static bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
+    static std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex);
+    static Consensus::LLMQParams GetLLMQParams(const Consensus::LLMQType llmqType);
 
     template<typename NodesContainer, typename Continue, typename Callback>
     static void IterateNodesRandom(NodesContainer& nodeStates, Continue&& cont, Callback&& callback, FastRandomContext& rnd)
@@ -83,4 +93,4 @@ public:
 
 } // namespace llmq
 
-#endif//XAZAB_QUORUMS_UTILS_H
+#endif // BITCOIN_LLMQ_QUORUMS_UTILS_H

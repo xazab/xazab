@@ -1,9 +1,8 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/quorums_commitment.h>
-#include <llmq/quorums_utils.h>
 
 #include <chainparams.h>
 #include <validation.h>
@@ -146,11 +145,11 @@ bool CheckLLMQCommitment(const CTransaction& tx, const CBlockIndex* pindexPrev, 
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-height");
     }
 
-    if (!mapBlockIndex.count(qcTx.commitment.quorumHash)) {
+    const CBlockIndex* pindexQuorum = LookupBlockIndex(qcTx.commitment.quorumHash);
+    if (!pindexQuorum) {
         return state.DoS(100, false, REJECT_INVALID, "bad-qc-quorum-hash");
     }
 
-    const CBlockIndex* pindexQuorum = mapBlockIndex[qcTx.commitment.quorumHash];
 
     if (pindexQuorum != pindexPrev->GetAncestor(pindexQuorum->nHeight)) {
         // not part of active chain

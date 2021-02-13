@@ -1,17 +1,15 @@
-// Copyright (c) 2018-2019 The Xazab Core developers
+// Copyright (c) 2018-2019 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <llmq/quorums_dkgsessionmgr.h>
 #include <llmq/quorums_blockprocessor.h>
 #include <llmq/quorums_debug.h>
-#include <llmq/quorums_init.h>
 #include <llmq/quorums_utils.h>
 
 #include <chainparams.h>
 #include <net_processing.h>
 #include <spork.h>
-#include <validation.h>
 
 namespace llmq
 {
@@ -32,9 +30,7 @@ CDKGSessionManager::CDKGSessionManager(CDBWrapper& _llmqDb, CBLSWorker& _blsWork
     }
 }
 
-CDKGSessionManager::~CDKGSessionManager()
-{
-}
+CDKGSessionManager::~CDKGSessionManager() = default;
 
 void CDKGSessionManager::StartThreads()
 {
@@ -60,7 +56,7 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
         return;
     if (!deterministicMNManager->IsDIP3Enforced(pindexNew->nHeight))
         return;
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return;
 
     for (auto& qt : dkgSessionHandlers) {
@@ -70,7 +66,7 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
 
 void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return;
 
     if (strCommand != NetMsgType::QCONTRIB
@@ -86,7 +82,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         return;
     }
 
-    if (vRecv.size() < 1) {
+    if (vRecv.empty()) {
         LOCK(cs_main);
         Misbehaving(pfrom->GetId(), 100);
         return;
@@ -105,7 +101,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
 
 bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -122,7 +118,7 @@ bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
 
 bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -142,7 +138,7 @@ bool CDKGSessionManager::GetContribution(const uint256& hash, CDKGContribution& 
 
 bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -162,7 +158,7 @@ bool CDKGSessionManager::GetComplaint(const uint256& hash, CDKGComplaint& ret) c
 
 bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -182,7 +178,7 @@ bool CDKGSessionManager::GetJustification(const uint256& hash, CDKGJustification
 
 bool CDKGSessionManager::GetPrematureCommitment(const uint256& hash, CDKGPrematureCommitment& ret) const
 {
-    if (!sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED))
+    if (!IsQuorumDKGEnabled())
         return false;
 
     for (const auto& p : dkgSessionHandlers) {
@@ -274,6 +270,11 @@ void CDKGSessionManager::CleanupCache()
             ++it;
         }
     }
+}
+
+bool IsQuorumDKGEnabled()
+{
+    return sporkManager.IsSporkActive(SPORK_17_QUORUM_DKG_ENABLED);
 }
 
 } // namespace llmq

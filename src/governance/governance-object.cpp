@@ -6,17 +6,15 @@
 #include <core_io.h>
 #include <governance/governance-classes.h>
 #include <governance/governance-validators.h>
-#include <governance/governance-vote.h>
 #include <governance/governance.h>
 #include <masternode/masternode-meta.h>
 #include <masternode/masternode-sync.h>
 #include <messagesigner.h>
 #include <spork.h>
-#include <util.h>
 #include <validation.h>
+#include <validationinterface.h>
 
 #include <string>
-#include <univalue.h>
 
 CGovernanceObject::CGovernanceObject() :
     cs(),
@@ -213,6 +211,8 @@ bool CGovernanceObject::ProcessVote(CNode* pfrom,
     voteInstanceRef = vote_instance_t(vote.GetOutcome(), nVoteTimeUpdate, vote.GetTimestamp());
     fileVotes.AddVote(vote);
     fDirtyCache = true;
+    // SEND NOTIFICATION TO SCRIPT/ZMQ
+    GetMainSignals().NotifyGovernanceVote(vote);
     return true;
 }
 
@@ -315,9 +315,7 @@ bool CGovernanceObject::Sign(const CBLSSecretKey& key)
 
 bool CGovernanceObject::CheckSignature(const CBLSPublicKey& pubKey) const
 {
-    CBLSSignature sig;
-    sig.SetBuf(vchSig);
-    if (!sig.VerifyInsecure(pubKey, GetSignatureHash())) {
+    if (!CBLSSignature(vchSig).VerifyInsecure(pubKey, GetSignatureHash())) {
         LogPrintf("CGovernanceObject::CheckSignature -- VerifyInsecure() failed\n");
         return false;
     }
@@ -417,6 +415,27 @@ std::string CGovernanceObject::GetDataAsHexString() const
 std::string CGovernanceObject::GetDataAsPlainString() const
 {
     return std::string(vchData.begin(), vchData.end());
+}
+
+UniValue CGovernanceObject::ToJson() const
+{
+    UniValue obj(UniValue::VOBJ);
+    obj.pushKV("objectHash", GetHash().ToString());
+    obj.pushKV("parentHash", nHashParent.ToString());
+    obj.pushKV("collateralHash", GetCollateralHash().ToString());
+    obj.pushKV("createdAt", GetCreationTime());
+    obj.pushKV("revision", nRevision);
+    UniValue data;
+    if (!data.read(GetDataAsPlainString())) {
+        data.clear();
+        data.setObject();
+        data.pushKV("plain", GetDataAsPlainString());
+        data.pushKV("hex", GetDataAsHexString());
+    } else {
+        data.pushKV("hex", GetDataAsHexString());
+    }
+    obj.pushKV("data", data);
+    return obj;
 }
 
 void CGovernanceObject::UpdateLocalValidity()
@@ -565,12 +584,9 @@ bool CGovernanceObject::IsCollateralValid(std::string& strError, bool& fMissingC
     AssertLockHeld(cs_main);
     int nConfirmationsIn = 0;
     if (nBlockHash != uint256()) {
-        BlockMap::iterator mi = mapBlockIndex.find(nBlockHash);
-        if (mi != mapBlockIndex.end() && (*mi).second) {
-            CBlockIndex* pindex = (*mi).second;
-            if (chainActive.Contains(pindex)) {
-                nConfirmationsIn += chainActive.Height() - pindex->nHeight + 1;
-            }
+        CBlockIndex* pindex = LookupBlockIndex(nBlockHash);
+        if (pindex && chainActive.Contains(pindex)) {
+            nConfirmationsIn += chainActive.Height() - pindex->nHeight + 1;
         }
     }
 

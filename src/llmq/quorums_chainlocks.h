@@ -1,9 +1,9 @@
-// Copyright (c) 2019-2020 The Xazab Core developers
+// Copyright (c) 2019-2020 The Dash Core developers
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef XAZAB_QUORUMS_CHAINLOCKS_H
-#define XAZAB_QUORUMS_CHAINLOCKS_H
+#ifndef BITCOIN_LLMQ_QUORUMS_CHAINLOCKS_H
+#define BITCOIN_LLMQ_QUORUMS_CHAINLOCKS_H
 
 #include <llmq/quorums.h>
 #include <llmq/quorums_signing.h>
@@ -49,7 +49,7 @@ class CChainLocksHandler : public CRecoveredSigsListener
     static const int64_t CLEANUP_INTERVAL = 1000 * 30;
     static const int64_t CLEANUP_SEEN_TIMEOUT = 24 * 60 * 60 * 1000;
 
-    // how long to wait for ixlocks until we consider a block with non-ixlocked TXs to be safe to sign
+    // how long to wait for islocks until we consider a block with non-islocked TXs to be safe to sign
     static const int64_t WAIT_FOR_ISLOCK_TIMEOUT = 10 * 60;
 
 private:
@@ -57,7 +57,7 @@ private:
     boost::thread* scheduler_thread;
     CCriticalSection cs;
     bool tryLockChainTipScheduled{false};
-    bool isSporkActive{false};
+    bool isEnabled{false};
     bool isEnforced{false};
 
     uint256 bestChainLockHash;
@@ -71,7 +71,7 @@ private:
     uint256 lastSignedRequestId;
     uint256 lastSignedMsgHash;
 
-    // We keep track of txids from recently received blocks so that we can check if all TXs got ixlocked
+    // We keep track of txids from recently received blocks so that we can check if all TXs got islocked
     typedef std::unordered_map<uint256, std::shared_ptr<std::unordered_set<uint256, StaticSaltedHasher>>> BlockTxs;
     BlockTxs blockTxs;
     std::unordered_map<uint256, int64_t> txFirstSeenTime;
@@ -113,7 +113,7 @@ private:
     bool InternalHasChainLock(int nHeight, const uint256& blockHash);
     bool InternalHasConflictingChainLock(int nHeight, const uint256& blockHash);
 
-    void DoInvalidateBlock(const CBlockIndex* pindex);
+    static void DoInvalidateBlock(const CBlockIndex* pindex);
 
     BlockTxs::mapped_type GetBlockTxs(const uint256& blockHash);
 
@@ -122,7 +122,8 @@ private:
 
 extern CChainLocksHandler* chainLocksHandler;
 
+bool AreChainLocksEnabled();
 
 } // namespace llmq
 
-#endif //XAZAB_QUORUMS_CHAINLOCKS_H
+#endif // BITCOIN_LLMQ_QUORUMS_CHAINLOCKS_H
