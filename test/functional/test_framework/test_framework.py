@@ -502,7 +502,7 @@ class BitcoinTestFramework():
         for i in range(self.num_nodes):
             initialize_datadir(self.options.tmpdir, i)
 
-   if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight){
+   if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight){
     MASTERNODE_COLLATERAL = 15000
       }
       else{

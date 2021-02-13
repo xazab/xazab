@@ -704,7 +704,7 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
 
             Coin coin;
            int masternode_collateral = 1000;
-          if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight)
+          if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
                masternode_collateral = 15000;
             if (!proTx.collateralOutpoint.hash.IsNull() && (!GetUTXOCoin(dmn->collateralOutpoint, coin) || coin.out.nValue != masternode_collateral * COIN)) {
                 // should actually never get to this point as CheckProRegTx should have handled this case.
@@ -1011,7 +1011,7 @@ bool CDeterministicMNManager::IsProTxWithCollateral(const CTransactionRef& tx, u
         return false;
     }
     int masternode_collateral = 1000;
-    if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight)
+    if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
         masternode_collateral = 15000;
     if (tx->vout[n].nValue != masternode_collateral * COIN) {
         return false;

@@ -136,7 +136,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
     if (!ptx.collateralOutpoint.hash.IsNull()) {
         Coin coin;
     int masternode_collateral = 1000;
-    if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight)
+    if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
         masternode_collateral = 15000;
         if (!GetUTXOCoin(ptx.collateralOutpoint, coin) || coin.out.nValue != masternode_collateral * COIN) {
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");
@@ -159,7 +159,7 @@ bool CheckProRegTx(const CTransaction& tx, const CBlockIndex* pindexPrev, CValid
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral-index");
         }
         int masternode_collateral = 1000;
-     if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight)
+     if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
         masternode_collateral = 15000;
         if (tx.vout[ptx.collateralOutpoint.n].nValue != masternode_collateral * COIN) {
             return state.DoS(10, false, REJECT_INVALID, "bad-protx-collateral");

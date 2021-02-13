@@ -424,11 +424,6 @@ UniValue protx_register(const JSONRPCRequest& request)
 
     size_t paramIdx = 1;
 
-    if (chainActive.Height() < Params().GetConsensus().nCollateralNewHeight){
-    CAmount collateralAmount = 1000 * COIN;
-    } else {
-    CAmount collateralAmount = 15000 * COIN;
-     }
     CMutableTransaction tx;
     tx.nVersion = 3;
     tx.nType = TRANSACTION_PROVIDER_REGISTER;
@@ -442,10 +437,15 @@ UniValue protx_register(const JSONRPCRequest& request)
             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, strprintf("invalid collaterall address: %s", request.params[paramIdx].get_str()));
         }
         CScript collateralScript = GetScriptForDestination(collateralDest);
-
+    if (chainActive.Height() < Params().GetConsensus().nCollateralNewHeight){
+        CAmount collateralAmount = 1000 * COIN;
         CTxOut collateralTxOut(collateralAmount, collateralScript);
         tx.vout.emplace_back(collateralTxOut);
-
+    } else {
+       CAmount collateralAmount = 15000 * COIN;
+        CTxOut collateralTxOut(collateralAmount, collateralScript);
+        tx.vout.emplace_back(collateralTxOut);
+    }
         paramIdx++;
     } else {
         uint256 collateralHash = ParseHashV(request.params[paramIdx], "collateralHash");
@@ -517,9 +517,18 @@ UniValue protx_register(const JSONRPCRequest& request)
     if (isFundRegister) {
         uint32_t collateralIndex = (uint32_t) -1;
         for (uint32_t i = 0; i < tx.vout.size(); i++) {
-            if (tx.vout[i].nValue == collateralAmount) {
+     if (chainActive.Height() < Params().GetConsensus().nCollateralNewHeight){
+        CAmount collateralAmount = 1000 * COIN;
+        if (tx.vout[i].nValue == collateralAmount) {
                 collateralIndex = i;
                 break;
+            }
+        } else {
+         CAmount collateralAmount = 15000 * COIN;
+        if (tx.vout[i].nValue == collateralAmount) {
+                collateralIndex = i;
+                break;
+            }
             }
         }
         assert(collateralIndex != (uint32_t) -1);

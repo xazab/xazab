@@ -2881,7 +2881,7 @@ void CWallet::AvailableCoins(std::vector<COutput> &vCoins, bool fOnlySafe, const
                 found = !CPrivateSend::IsDenominatedAmount(pcoin->tx->vout[i].nValue);
             } else if(nCoinType == CoinType::ONLY_MASTERNODE_COLLATERAL) {
                int masternode_collateral = 1000;
-                 if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight)
+                 if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
                    masternode_collateral = 15000;
                found = pcoin->tx->vout[i].nValue == masternode_collateral*COIN;
             } else if(nCoinType == CoinType::ONLY_PRIVATESEND_COLLATERAL) {
@@ -3342,7 +3342,7 @@ bool CWallet::SelectCoinsGroupedByAddresses(std::vector<CompactTallyItem>& vecTa
                   LOCK(cs_main);
                   nHeight = chainActive.Height();
              }
-                if (chainActive.Height() >= Params().GetConsensus().nCollateralChangeHeight)
+                if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
                     masternode_collateral = 15000;
                 if(fMasternodeMode && wtx.tx->vout[i].nValue == masternode_collateral*COIN) continue;
                 // ignore outputs that are 10 times smaller then the smallest denomination
