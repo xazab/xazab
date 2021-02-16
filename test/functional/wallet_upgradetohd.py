@@ -139,7 +139,7 @@ class WalletUpgradeToHDTest(BitcoinTestFramework):
         self.log.info("Same mnemonic, same mnemonic passphrase, encrypt wallet on upgrade, should recover all coins after rescan")
         walletpass = "111pass222"
         # Upgrading and encrypting at the saame time results in a warning
-        assert_equal(node.upgradetohd(mnemonic, "", walletpass), "Wallet successfully upgraded and encrypted, Dash Core server is stopping. Remember to make a backup before restarting.")
+        assert_equal(node.upgradetohd(mnemonic, "", walletpass), "Wallet successfully upgraded and encrypted, Xazab Core server is stopping. Remember to make a backup before restarting.")
         # Wallet encryption results in node shutdown
         node.wait_until_stopped()
         self.start_node(0, extra_args=['-rescan'])
