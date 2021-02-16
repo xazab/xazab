@@ -7,6 +7,8 @@ Xazab Core staging tree 0.17
 
 `master:` [![Build Status](https://travis-ci.org/xazab/xazab.svg?branch=master)](https://travis-ci.org/xazab/xazab) `develop:` [![Build Status](https://travis-ci.org/xazab/xazab.svg?branch=develop)](https://travis-ci.org/xazab/xazab/branches)
 
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/xazabcore)
+
 What is Xazab?
 -------------
 
