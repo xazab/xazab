@@ -120,13 +120,21 @@ b81eaf197e5649baadb6afda95abedc1b2a3f33ffd2f5119f9b126cb19e20829 xazabcore-0.17.
 ```
 
 [64-bit windows Installer](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0-win64-setup.exe)
+
 [64-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-win64.zip)
+
 [32-bit windows binaries Installer](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17-win32-setup.exe)
+
 [32-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-win32.zip)
+
 [64-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-x86_64-linux-gnu.tar.gz)
+
 [32-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.1-i686-pc-linux-gnu.tar.gz)
+
 [Armv7 binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-arm-linux-gnueabihf.tar.gz)
+
 [Armv8 binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-aarch64-linux-gnu.tar.gz)
+
 [Android Mobile Wallet](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazab-wallet-prod-release.apk)
 
 
