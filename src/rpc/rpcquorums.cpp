@@ -55,7 +55,7 @@ UniValue quorum_list(const JSONRPCRequest& request)
     UniValue ret(UniValue::VOBJ);
 
     for (auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(chainActive.Tip())) {
-        const auto& params = llmq::CLLMQUtils::GetLLMQParams(type);
+        const auto& params = llmq::GetLLMQParams(type);
         UniValue v(UniValue::VARR);
 
         auto quorums = llmq::quorumManager->ScanQuorums(type, chainActive.Tip(), count > -1 ? count : params.signingActiveQuorumCount);
@@ -111,7 +111,7 @@ UniValue BuildQuorumInfo(const llmq::CQuorumCPtr& quorum, bool includeMembers, b
         ret.pushKV("members", membersArr);
     }
     ret.pushKV("quorumPublicKey", quorum->qc.quorumPublicKey.ToString());
-    CBLSSecretKey skShare = quorum->GetSkShare();
+    const CBLSSecretKey& skShare = quorum->GetSkShare();
     if (includeSkShare && skShare.IsValid()) {
         ret.pushKV("secretKeyShare", skShare.ToString());
     }
@@ -129,8 +129,6 @@ UniValue quorum_info(const JSONRPCRequest& request)
     if (!Params().GetConsensus().llmqs.count(llmqType)) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid LLMQ type");
     }
-
-    const auto& llmqParams = Params().GetConsensus().llmqs.at(llmqType);
 
     uint256 quorumHash = ParseHashV(request.params[2], "quorumHash");
     bool includeSkShare = false;
@@ -183,7 +181,7 @@ UniValue quorum_dkgstatus(const JSONRPCRequest& request)
     UniValue minableCommitments(UniValue::VOBJ);
     UniValue quorumConnections(UniValue::VOBJ);
     for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(chainActive.Tip())) {
-        const auto& params = llmq::CLLMQUtils::GetLLMQParams(type);
+        const auto& params = llmq::GetLLMQParams(type);
 
         if (fMasternodeMode) {
             const CBlockIndex* pindexQuorum = chainActive[tipHeight - (tipHeight % params.dkgInterval)];
@@ -267,7 +265,7 @@ UniValue quorum_memberof(const JSONRPCRequest& request)
     UniValue result(UniValue::VARR);
 
     for (const auto& type : llmq::CLLMQUtils::GetEnabledQuorumTypes(pindexTip)) {
-        const auto& params = llmq::CLLMQUtils::GetLLMQParams(type);
+        const auto& params = llmq::GetLLMQParams(type);
         size_t count = params.signingActiveQuorumCount;
         if (scanQuorumsCount != -1) {
             count = (size_t)scanQuorumsCount;
@@ -296,6 +294,25 @@ void quorum_sign_help()
             "2. \"id\"                  (string, required) Request id.\n"
             "3. \"msgHash\"             (string, required) Message hash.\n"
             "4. \"quorumHash\"          (string, optional) The quorum identifier.\n"
+            "5. submit                (bool, optional, default=true) Submits the signature share to the network if this is true."
+        "                             Returns an object containing the signature share if this is false.\n"
+    );
+}
+
+void quorum_verify_help()
+{
+    throw std::runtime_error(
+            "quorum verify llmqType \"id\" \"msgHash\" \"signature\" ( \"quorumHash\" signHeight )\n"
+            "Test if a quorum signature is valid for a request id and a message hash\n"
+            "\nArguments:\n"
+            "1. llmqType              (int, required) LLMQ type.\n"
+            "2. \"id\"                  (string, required) Request id.\n"
+            "3. \"msgHash\"             (string, required) Message hash.\n"
+            "4. \"signature\"           (string, required) Quorum signature to verify.\n"
+            "5. \"quorumHash\"          (string, optional) The quorum identifier.\n"
+            "                             Set to \"\" if you want to specify signHeight instead.\n"
+            "6. signHeight                (int, optional) The height at which the message was signed.\n"
+            "                             Only works when quorumHash is \"\".\n"
     );
 }
 
@@ -340,8 +357,12 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
     auto cmd = request.params[0].get_str();
     if (request.fHelp || (request.params.size() != 4)) {
         if (cmd == "sign") {
-            if ((request.params.size() < 4) || (request.params.size() > 5)) {
+            if ((request.params.size() < 4) || (request.params.size() > 6)) {
                 quorum_sign_help();
+            }
+        } else if (cmd == "verify") {
+            if (request.params.size() < 5 || request.params.size() > 7) {
+                quorum_verify_help();
             }
         } else if (cmd == "hasrecsig") {
             quorum_hasrecsig_help();
@@ -364,17 +385,77 @@ UniValue quorum_sigs_cmd(const JSONRPCRequest& request)
     uint256 msgHash = ParseHashV(request.params[3], "msgHash");
 
     if (cmd == "sign") {
-        if (!request.params[4].isNull()) {
-            uint256 quorumHash = ParseHashV(request.params[4], "quorumHash");
-            auto quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
-            if (!quorum) {
+        uint256 quorumHash;
+        if (!request.params[4].isNull() && !request.params[4].get_str().empty()) {
+            quorumHash = ParseHashV(request.params[4], "quorumHash");
+        }
+        bool fSubmit{true};
+        if (!request.params[5].isNull()) {
+            fSubmit = ParseBoolV(request.params[5], "submit");
+        }
+        if (fSubmit) {
+            return llmq::quorumSigningManager->AsyncSignIfMember(llmqType, id, msgHash, quorumHash);
+        } else {
+
+            llmq::CQuorumCPtr pQuorum;
+
+            if (quorumHash.IsNull()) {
+                pQuorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id);
+            } else {
+                pQuorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
+            }
+
+            if (pQuorum == nullptr) {
                 throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
             }
-            llmq::quorumSigSharesManager->AsyncSign(quorum, id, msgHash);
-            return true;
-        } else {
-            return llmq::quorumSigningManager->AsyncSignIfMember(llmqType, id, msgHash);
+
+            llmq::CSigShare sigShare = llmq::quorumSigSharesManager->CreateSigShare(pQuorum, id, msgHash);
+
+            if (!sigShare.sigShare.Get().IsValid()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "failed to create sigShare");
+            }
+
+            UniValue obj(UniValue::VOBJ);
+            obj.pushKV("llmqType", llmqType);
+            obj.pushKV("quorumHash", sigShare.quorumHash.ToString());
+            obj.pushKV("quorumMember", sigShare.quorumMember);
+            obj.pushKV("id", id.ToString());
+            obj.pushKV("msgHash", msgHash.ToString());
+            obj.pushKV("signHash", sigShare.GetSignHash().ToString());
+            obj.pushKV("signature", sigShare.sigShare.Get().ToString());
+
+            return obj;
         }
+    } else if (cmd == "verify") {
+        CBLSSignature sig;
+        if (!sig.SetHexStr(request.params[4].get_str())) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
+        }
+
+        llmq::CQuorumCPtr quorum{nullptr};
+        if (request.params[5].isNull() || (request.params[5].get_str().empty() && !request.params[6].isNull())) {
+            int signHeight{-1};
+            if (!request.params[6].isNull()) {
+                signHeight = ParseInt32V(request.params[6], "signHeight");
+            }
+            // First check against the current active set
+            quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, 0);
+            if (!quorum) {
+                // Then check against the previous active set in case it changed recently
+                int signOffset = Params().GetConsensus().llmqs.at(llmqType).dkgInterval;
+                quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, signOffset);
+            }
+        } else {
+            uint256 quorumHash = ParseHashV(request.params[5], "quorumHash");
+            quorum = llmq::quorumManager->GetQuorum(llmqType, quorumHash);
+        }
+
+        if (!quorum) {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
+        }
+
+        uint256 signHash = llmq::CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, msgHash);
+        return sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash);
     } else if (cmd == "hasrecsig") {
         return llmq::quorumSigningManager->HasRecoveredSig(llmqType, id, msgHash);
     } else if (cmd == "getrecsig") {
@@ -467,6 +548,57 @@ UniValue quorum_dkgsimerror(const JSONRPCRequest& request)
     return UniValue();
 }
 
+void quorum_getdata_help()
+{
+    throw std::runtime_error(
+        "quorum getdata nodeId llmqType \"quorumHash\" dataMask ( \"proTxHash\" )\n"
+        "Send a QGETDATA message to the specified peer.\n"
+        "\nArguments:\n"
+        "1. nodeId          (integer, required) The internal nodeId of the peer to request quorum data from.\n"
+        "2. llmqType        (integer, required) The quorum type related to the quorum data being requested.\n"
+        "3. \"quorumHash\"    (string, required) The quorum hash related to the quorum data being requested.\n"
+        "4. dataMask        (integer, required) Specify what data to request.\n"
+        "                                       Possible values: 1 - Request quorum verification vector\n"
+        "                                                        2 - Request encrypted contributions for member defined by \"proTxHash\". \"proTxHash\" must be specified if this option is used.\n"
+        "                                                        3 - Request both, 1 and 2\n"
+        "5. \"proTxHash\"     (string, optional) The proTxHash the contributions will be requested for. Must be member of the specified LLMQ.\n"
+        );
+}
+
+UniValue quorum_getdata(const JSONRPCRequest& request)
+{
+    if (request.fHelp || (request.params.size() < 5 || request.params.size() > 6)) {
+        quorum_getdata_help();
+    }
+
+    NodeId nodeId = ParseInt64V(request.params[1], "nodeId");
+    Consensus::LLMQType llmqType = static_cast<Consensus::LLMQType>(ParseInt32V(request.params[2], "llmqType"));
+    uint256 quorumHash = ParseHashV(request.params[3], "quorumHash");
+    uint16_t nDataMask = static_cast<uint16_t>(ParseInt32V(request.params[4], "dataMask"));
+    uint256 proTxHash;
+
+    // Check if request wants ENCRYPTED_CONTRIBUTIONS data
+    if (nDataMask & llmq::CQuorumDataRequest::ENCRYPTED_CONTRIBUTIONS) {
+        if (!request.params[5].isNull()) {
+            proTxHash = ParseHashV(request.params[5], "proTxHash");
+            if (proTxHash.IsNull()) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, "proTxHash invalid");
+            }
+        } else {
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "proTxHash missing");
+        }
+    }
+
+    const CBlockIndex* pQuorumIndex{nullptr};
+    {
+        LOCK(cs_main);
+        pQuorumIndex = LookupBlockIndex(quorumHash);
+    }
+    return g_connman->ForNode(nodeId, [&](CNode* pNode) {
+        return llmq::quorumManager->RequestQuorumData(pNode, llmqType, pQuorumIndex, nDataMask, proTxHash);
+    });
+}
+
 
 [[ noreturn ]] void quorum_help()
 {
@@ -483,6 +615,7 @@ UniValue quorum_dkgsimerror(const JSONRPCRequest& request)
             "  dkgstatus         - Return the status of the current DKG process\n"
             "  memberof          - Checks which quorums the given masternode is a member of\n"
             "  sign              - Threshold-sign a message\n"
+            "  verify            - Test if a quorum signature is valid for a request id and a message hash\n"
             "  hasrecsig         - Test if a valid recovered signature is present\n"
             "  getrecsig         - Get a recovered signature\n"
             "  isconflicting     - Test if a conflict exists\n"
@@ -509,21 +642,96 @@ UniValue quorum(const JSONRPCRequest& request)
         return quorum_dkgstatus(request);
     } else if (command == "memberof") {
         return quorum_memberof(request);
-    } else if (command == "sign" || command == "hasrecsig" || command == "getrecsig" || command == "isconflicting") {
+    } else if (command == "sign" || command == "verify" || command == "hasrecsig" || command == "getrecsig" || command == "isconflicting") {
         return quorum_sigs_cmd(request);
     } else if (command == "selectquorum") {
         return quorum_selectquorum(request);
     } else if (command == "dkgsimerror") {
         return quorum_dkgsimerror(request);
+    } else if (command == "getdata") {
+        return quorum_getdata(request);
     } else {
         quorum_help();
     }
+}
+
+void verifyislock_help()
+{
+    throw std::runtime_error(
+            "verifyislock \"id\" \"txid\" \"signature\" ( maxHeight )\n"
+            "Test if a quorum signature is valid for an InstantSend Lock\n"
+            "\nArguments:\n"
+            "1. \"id\"                  (string, required) Request id.\n"
+            "2. \"txid\"                (string, required) The transaction id.\n"
+            "3. \"signature\"           (string, required) The InstantSend Lock signature to verify.\n"
+            "4. maxHeight                 (int, optional) The maximum height to search quorums from.\n"
+    );
+}
+
+UniValue verifyislock(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() < 3 || request.params.size() > 4) {
+        verifyislock_help();
+    }
+
+    uint256 id = ParseHashV(request.params[0], "id");
+    uint256 txid = ParseHashV(request.params[1], "txid");
+
+    CBLSSignature sig;
+    if (!sig.SetHexStr(request.params[2].get_str())) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "invalid signature format");
+    }
+
+    CBlockIndex* pindexMined{nullptr};
+    {
+        LOCK(cs_main);
+        CTransactionRef tx;
+        uint256 hash_block;
+        if (!GetTransaction(txid, tx, Params().GetConsensus(), hash_block, true)) {
+            std::string errmsg = fTxIndex
+                  ? "No such mempool or blockchain transaction"
+                  : "No such mempool transaction. Use -txindex to enable blockchain transaction queries";
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, errmsg);
+        }
+        if (!hash_block.IsNull()) {
+            pindexMined = LookupBlockIndex(hash_block);
+        }
+    }
+
+    int maxHeight{-1};
+    if (!request.params[3].isNull()) {
+        maxHeight = ParseInt32V(request.params[3], "maxHeight");
+    }
+
+    int signHeight;
+    if (pindexMined == nullptr || pindexMined->nHeight > maxHeight) {
+        signHeight = maxHeight;
+    } else { // pindexMined->nHeight <= maxHeight
+        signHeight = pindexMined->nHeight;
+    }
+
+    // First check against the current active set
+    auto llmqType = Params().GetConsensus().llmqTypeInstantSend;
+    auto quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, 0);
+    if (!quorum) {
+        // Then check against the previous active set in case it changed recently
+        int signOffset = Params().GetConsensus().llmqs.at(llmqType).dkgInterval;
+        quorum = llmq::quorumSigningManager->SelectQuorumForSigning(llmqType, id, signHeight, signOffset);
+        if (!quorum) {
+            // None of the above
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "quorum not found");
+        }
+    }
+
+    uint256 signHash = llmq::CLLMQUtils::BuildSignHash(llmqType, quorum->qc.quorumHash, id, txid);
+    return sig.VerifyInsecure(quorum->qc.quorumPublicKey, signHash);
 }
 
 static const CRPCCommand commands[] =
 { //  category              name                      actor (function)
   //  --------------------- ------------------------  -----------------------
     { "evo",                "quorum",                 &quorum,                 {}  },
+    { "evo",                "verifyislock",           &verifyislock,           {"id", "txid", "signature", "maxHeight"}  },
 };
 
 void RegisterQuorumsRPCCommands(CRPCTable &tableRPC)

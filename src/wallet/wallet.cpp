@@ -14,6 +14,7 @@
 #include <fs.h>
 #include <init.h>
 #include <key.h>
+#include <key_io.h>
 #include <keystore.h>
 #include <validation.h>
 #include <net.h>
@@ -1094,6 +1095,7 @@ void CWallet::MarkDirty()
 
 bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
 {
+    AssertLockHeld(cs_main); // detect potential deadlocks which might be caused by GetListAtChainTip and IsSpent below
     LOCK(cs_wallet);
 
     WalletBatch batch(*database, "r+", fFlushOnClose);
@@ -1147,6 +1149,17 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn, bool fFlushOnClose)
         {
             wtx.fFromMe = wtxIn.fFromMe;
             fUpdated = true;
+        }
+
+        auto mnList = deterministicMNManager->GetListAtChainTip();
+        for (unsigned int i = 0; i < wtx.tx->vout.size(); ++i) {
+            if (IsMine(wtx.tx->vout[i]) && !IsSpent(hash, i)) {
+                bool new_utxo = setWalletUTXO.insert(COutPoint(hash, i)).second;
+                if (new_utxo && (deterministicMNManager->IsProTxWithCollateral(wtx.tx, i) || mnList.HasMNByCollateral(COutPoint(hash, i)))) {
+                    LockCoin(COutPoint(hash, i));
+                }
+                fUpdated |= new_utxo;
+            }
         }
     }
 
@@ -1220,6 +1233,7 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransactionRef& ptx, const CBlockI
 {
     const CTransaction& tx = *ptx;
     {
+        AssertLockHeld(cs_main); // because of AddToWallet
         AssertLockHeld(cs_wallet);
 
         if (pIndex != nullptr) {
@@ -1751,41 +1765,89 @@ CAmount CWallet::GetChange(const CTxOut& txout) const
     return (IsChange(txout) ? txout.nValue : 0);
 }
 
-void CWallet::GenerateNewHDChain()
+void CWallet::GenerateNewHDChain(const SecureString& secureMnemonic, const SecureString& secureMnemonicPassphrase)
 {
     CHDChain newHdChain;
 
-    std::string strSeed = gArgs.GetArg("-hdseed", "not hex");
-
-    if(gArgs.IsArgSet("-hdseed") && IsHex(strSeed)) {
-        std::vector<unsigned char> vchSeed = ParseHex(strSeed);
-        if (!newHdChain.SetSeed(SecureVector(vchSeed.begin(), vchSeed.end()), true))
-            throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
+    // NOTE: an empty mnemonic means "generate a new one for me"
+    // NOTE: default mnemonic passphrase is an empty string
+    if (!newHdChain.SetMnemonic(secureMnemonic, secureMnemonicPassphrase, true)) {
+        throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
     }
-    else {
-        if (gArgs.IsArgSet("-hdseed") && !IsHex(strSeed))
-            LogPrintf("CWallet::GenerateNewHDChain -- Incorrect seed, generating random one instead\n");
 
-        // NOTE: empty mnemonic means "generate a new one for me"
-        std::string strMnemonic = gArgs.GetArg("-mnemonic", "");
-        // NOTE: default mnemonic passphrase is an empty string
-        std::string strMnemonicPassphrase = gArgs.GetArg("-mnemonicpassphrase", "");
-
-        SecureVector vchMnemonic(strMnemonic.begin(), strMnemonic.end());
-        SecureVector vchMnemonicPassphrase(strMnemonicPassphrase.begin(), strMnemonicPassphrase.end());
-
-        if (!newHdChain.SetMnemonic(vchMnemonic, vchMnemonicPassphrase, true))
-            throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
-    }
     newHdChain.Debug(__func__);
 
-    if (!SetHDChainSingle(newHdChain, false))
+    if (!SetHDChainSingle(newHdChain, false)) {
         throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
+    }
 
-    // clean up
-    gArgs.ForceRemoveArg("-hdseed");
-    gArgs.ForceRemoveArg("-mnemonic");
-    gArgs.ForceRemoveArg("-mnemonicpassphrase");
+    if (!NewKeyPool()) {
+        throw std::runtime_error(std::string(__func__) + ": NewKeyPool failed");
+    }
+}
+
+bool CWallet::GenerateNewHDChainEncrypted(const SecureString& secureMnemonic, const SecureString& secureMnemonicPassphrase, const SecureString& secureWalletPassphrase)
+{
+    LOCK(cs_wallet);
+
+    if (!IsCrypted()) {
+        return false;
+    }
+
+    CCrypter crypter;
+    CKeyingMaterial vMasterKey;
+    CHDChain hdChainTmp;
+
+    // NOTE: an empty mnemonic means "generate a new one for me"
+    // NOTE: default mnemonic passphrase is an empty string
+    if (!hdChainTmp.SetMnemonic(secureMnemonic, secureMnemonicPassphrase, true)) {
+        throw std::runtime_error(std::string(__func__) + ": SetMnemonic failed");
+    }
+
+    hdChainTmp.Debug(__func__);
+
+    for (const MasterKeyMap::value_type& pMasterKey : mapMasterKeys) {
+        if (!crypter.SetKeyFromPassphrase(secureWalletPassphrase, pMasterKey.second.vchSalt, pMasterKey.second.nDeriveIterations, pMasterKey.second.nDerivationMethod)) {
+            return false;
+        }
+        // get vMasterKey to encrypt new hdChain
+        if (!crypter.Decrypt(pMasterKey.second.vchCryptedKey, vMasterKey)) {
+            continue; // try another master key
+        }
+
+        bool res = EncryptHDChain(vMasterKey, hdChainTmp);
+        assert(res);
+
+        CHDChain hdChainCrypted;
+        res = GetHDChain(hdChainCrypted);
+        assert(res);
+
+        DBG(
+            printf("GenerateNewHDChainEncrypted -- current seed: '%s'\n", HexStr(hdChainTmp.GetSeed()).c_str());
+            printf("GenerateNewHDChainEncrypted -- crypted seed: '%s'\n", HexStr(hdChainCrypted.GetSeed()).c_str());
+        );
+
+        // ids should match, seed hashes should not
+        assert(hdChainTmp.GetID() == hdChainCrypted.GetID());
+        assert(hdChainTmp.GetSeedHash() != hdChainCrypted.GetSeedHash());
+
+        hdChainCrypted.Debug(__func__);
+
+        if (SetCryptedHDChainSingle(hdChainCrypted, false)) {
+            Lock();
+            if (!Unlock(secureWalletPassphrase)) {
+                // this should never happen
+                throw std::runtime_error(std::string(__func__) + ": Unlock failed");
+            }
+            if (!NewKeyPool()) {
+                throw std::runtime_error(std::string(__func__) + ": NewKeyPool failed");
+            }
+            Lock();
+            return true;
+        }
+    }
+
+    return false;
 }
 
 bool CWallet::SetHDChain(WalletBatch &batch, const CHDChain& chain, bool memonly)
@@ -2372,6 +2434,7 @@ CAmount CWalletTx::GetAvailableCredit(bool fUseCache, const isminefilter& filter
 
     if (cache) {
         *cache = nCredit;
+        assert(cache_used);
         *cache_used = true;
     }
     return nCredit;
@@ -3028,8 +3091,11 @@ bool CWallet::OutputEligibleForSpending(const COutput& output, const CoinEligibi
     if ((output.nDepth < (output.tx->IsFromMe(ISMINE_ALL) ? eligibility_filter.conf_mine : eligibility_filter.conf_theirs)) && !fLockedByIS)
         return false;
 
-    if (!mempool.TransactionWithinChainLimit(output.tx->GetHash(), eligibility_filter.max_ancestors))
+    size_t ancestors, descendants;
+    mempool.GetTransactionAncestry(output.tx->GetHash(), ancestors, descendants);
+    if (ancestors > eligibility_filter.max_ancestors || descendants > eligibility_filter.max_descendants) {
         return false;
+    }
 
     return true;
 }
@@ -3155,16 +3221,17 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
             ++it;
     }
 
-    size_t nMaxChainLength = std::min(gArgs.GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT), gArgs.GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT));
+    size_t max_ancestors = (size_t)std::max<int64_t>(1, gArgs.GetArg("-limitancestorcount", DEFAULT_ANCESTOR_LIMIT));
+    size_t max_descendants = (size_t)std::max<int64_t>(1, gArgs.GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT));
     bool fRejectLongChains = gArgs.GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
 
     bool res = nTargetValue <= nValueFromPresetInputs ||
         SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(1, 6, 0), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType) ||
         SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(1, 1, 0), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType) ||
         (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, 2), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, std::min((size_t)4, nMaxChainLength/3)), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, nMaxChainLength/2), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, nMaxChainLength), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, std::min((size_t)4, max_ancestors/3), std::min((size_t)4, max_descendants/3)), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, max_ancestors/2, max_descendants/2), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, max_ancestors-1, max_descendants-1), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType)) ||
         (bSpendZeroConfChange && !fRejectLongChains && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, CoinEligibilityFilter(0, 1, std::numeric_limits<uint64_t>::max()), vCoins, setCoinsRet, nValueRet, coin_selection_params, bnb_used, nCoinType));
 
     // because SelectCoinsMinConf clears the setCoinsRet, we now add the possible inputs to the coinset
@@ -3235,7 +3302,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount& nFeeRet, int& nC
     return true;
 }
 
-bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMax, std::vector< std::pair<CTxDSIn, CTxOut> >& vecPSInOutPairsRet)
+bool CWallet::SelectTxDSInsByDenomination(int nDenom, CAmount nValueMax, std::vector<CTxDSIn>& vecTxDSInRet)
 {
     LOCK2(cs_main, cs_wallet);
 
@@ -3244,7 +3311,7 @@ bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMax, s
     std::set<uint256> setRecentTxIds;
     std::vector<COutput> vCoins;
 
-    vecPSInOutPairsRet.clear();
+    vecTxDSInRet.clear();
 
     if (!CPrivateSend::IsValidDenomination(nDenom)) {
         return false;
@@ -3256,24 +3323,24 @@ bool CWallet::SelectPSInOutPairsByDenominations(int nDenom, CAmount nValueMax, s
     AvailableCoins(vCoins, true, &coin_control);
     LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- vCoins.size(): %d\n", __func__, vCoins.size());
 
-    std::random_shuffle(vCoins.rbegin(), vCoins.rend(), GetRandInt);
+    Shuffle(vCoins.rbegin(), vCoins.rend(), FastRandomContext());
 
     for (const auto& out : vCoins) {
         uint256 txHash = out.tx->GetHash();
         CAmount nValue = out.tx->tx->vout[out.i].nValue;
         if (setRecentTxIds.find(txHash) != setRecentTxIds.end()) continue; // no duplicate txids
         if (nValueTotal + nValue > nValueMax) continue;
+        if (nValue != nDenomAmount) continue;
 
         CTxIn txin = CTxIn(txHash, out.i);
         CScript scriptPubKey = out.tx->tx->vout[out.i].scriptPubKey;
         int nRounds = GetRealOutpointPrivateSendRounds(txin.prevout);
 
-        if (nValue != nDenomAmount) continue;
         nValueTotal += nValue;
-        vecPSInOutPairsRet.emplace_back(CTxDSIn(txin, scriptPubKey), CTxOut(nValue, scriptPubKey, nRounds));
+        vecTxDSInRet.emplace_back(CTxDSIn(txin, scriptPubKey, nRounds));
         setRecentTxIds.emplace(txHash);
-        LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- hash: %s, nValue: %d.%08d, nRounds: %d\n",
-                        __func__, txHash.ToString(), nValue / COIN, nValue % COIN, nRounds);
+        LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- hash: %s, nValue: %d.%08d\n",
+                        __func__, txHash.ToString(), nValue / COIN, nValue % COIN);
     }
 
     LogPrint(BCLog::PRIVATESEND, "CWallet::%s -- setRecentTxIds.size(): %d\n", __func__, setRecentTxIds.size());
@@ -3327,7 +3394,7 @@ bool CWallet::SelectCoinsGroupedByAddresses(std::vector<CompactTallyItem>& vecTa
             if(!(mine & filter)) continue;
 
             auto itTallyItem = mapTally.find(txdest);
-            if (nMaxOupointsPerAddress != -1 && itTallyItem != mapTally.end() && itTallyItem->second.vecOutPoints.size() >= nMaxOupointsPerAddress) continue;
+            if (nMaxOupointsPerAddress != -1 && itTallyItem != mapTally.end() && itTallyItem->second.vecInputCoins.size() >= nMaxOupointsPerAddress) continue;
 
             if(IsSpent(outpoint.hash, i) || IsLockedCoin(outpoint.hash, i)) continue;
 
@@ -3357,7 +3424,7 @@ bool CWallet::SelectCoinsGroupedByAddresses(std::vector<CompactTallyItem>& vecTa
                 itTallyItem->second.txdest = txdest;
             }
             itTallyItem->second.nAmount += wtx.tx->vout[i].nValue;
-            itTallyItem->second.vecOutPoints.emplace_back(outpoint.hash, i);
+            itTallyItem->second.vecInputCoins.emplace_back(wtx.tx, i);
         }
     }
 
@@ -3415,26 +3482,6 @@ bool CWallet::SelectDenominatedAmounts(CAmount nValueMax, std::set<CAmount>& set
     }
 
     return nValueTotal >= CPrivateSend::GetSmallestDenomination();
-}
-
-bool CWallet::GetCollateralTxDSIn(CTxDSIn& txdsinRet, CAmount& nValueRet) const
-{
-    LOCK2(cs_main, cs_wallet);
-
-    std::vector<COutput> vCoins;
-
-    CCoinControl coin_control;
-    coin_control.nCoinType = CoinType::ONLY_PRIVATESEND_COLLATERAL;
-    AvailableCoins(vCoins, true, &coin_control);
-
-    if (vCoins.empty()) {
-        return false;
-    }
-
-    const auto& out = vCoins.at((int)GetRandInt(vCoins.size()));
-    txdsinRet = CTxDSIn(CTxIn(out.tx->tx->GetHash(), out.i), out.tx->tx->vout[out.i].scriptPubKey);
-    nValueRet = out.tx->tx->vout[out.i].nValue;
-    return true;
 }
 
 bool CWallet::GetMasternodeOutpointAndKeys(COutPoint& outpointRet, CPubKey& pubKeyRet, CKey& keyRet, const std::string& strTxHash, const std::string& strOutputIndex)
@@ -3525,50 +3572,6 @@ bool CWallet::HasCollateralInputs(bool fOnlyConfirmed) const
     AvailableCoins(vCoins, fOnlyConfirmed, &coin_control);
 
     return !vCoins.empty();
-}
-
-bool CWallet::CreateCollateralTransaction(CMutableTransaction& txCollateral, std::string& strReason)
-{
-    LOCK2(cs_main, cs_wallet);
-
-    txCollateral.vin.clear();
-    txCollateral.vout.clear();
-
-    CReserveKey reservekey(this);
-    CAmount nValue = 0;
-    CTxDSIn txdsinCollateral;
-
-    if (!GetCollateralTxDSIn(txdsinCollateral, nValue)) {
-        strReason = "PrivateSend requires a collateral transaction and could not locate an acceptable input!";
-        return false;
-    }
-
-    txCollateral.vin.push_back(txdsinCollateral);
-
-    // pay collateral charge in fees
-    // NOTE: no need for protobump patch here,
-    // CPrivateSend::IsCollateralAmount in GetCollateralTxDSIn should already take care of this
-    if (nValue >= CPrivateSend::GetCollateralAmount() * 2) {
-        // make our change address
-        CScript scriptChange;
-        CPubKey vchPubKey;
-        bool success = reservekey.GetReservedKey(vchPubKey, true);
-        assert(success); // should never fail, as we just unlocked
-        scriptChange = GetScriptForDestination(vchPubKey.GetID());
-        reservekey.KeepKey();
-        // return change
-        txCollateral.vout.push_back(CTxOut(nValue - CPrivateSend::GetCollateralAmount(), scriptChange));
-    } else { // nValue < CPrivateSend::GetCollateralAmount() * 2
-        // create dummy data output only and pay everything as a fee
-        txCollateral.vout.push_back(CTxOut(0, CScript() << OP_RETURN));
-    }
-
-    if (!SignSignature(*this, txdsinCollateral.prevPubKey, txCollateral, 0, nValue, SIGHASH_ALL)) {
-        strReason = "Unable to sign collateral transaction!";
-        return false;
-    }
-
-    return true;
 }
 
 bool CWallet::GetBudgetSystemCollateralTX(CTransactionRef& tx, uint256 hash, CAmount amount, const COutPoint& outpoint)
@@ -4005,7 +4008,8 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CTransac
         size_t nLimitDescendants = gArgs.GetArg("-limitdescendantcount", DEFAULT_DESCENDANT_LIMIT);
         size_t nLimitDescendantSize = gArgs.GetArg("-limitdescendantsize", DEFAULT_DESCENDANT_SIZE_LIMIT)*1000;
         std::string errString;
-        if (!mempool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize, nLimitDescendants, nLimitDescendantSize, errString)) {
+        LOCK(::mempool.cs);
+        if (!::mempool.CalculateMemPoolAncestors(entry, setAncestors, nLimitAncestors, nLimitAncestorSize, nLimitDescendants, nLimitDescendantSize, errString)) {
             strFailReason = _("Transaction has too long of a mempool chain");
             return false;
         }
@@ -5007,7 +5011,12 @@ bool CWallet::Verify(std::string wallet_file, bool salvage_wallet, std::string& 
         }
     }
 
-    if (!WalletBatch::VerifyEnvironment(wallet_path, error_string)) {
+    try {
+        if (!WalletBatch::VerifyEnvironment(wallet_path, error_string)) {
+            return false;
+        }
+    } catch (const fs::filesystem_error& e) {
+        error_string = strprintf("Error loading wallet %s. %s", wallet_file, e.what());
         return false;
     }
 
@@ -5112,14 +5121,35 @@ CWallet* CWallet::CreateWalletFromFile(const std::string& name, const fs::path& 
     {
         // Create new keyUser and set as default key
         if (gArgs.GetBoolArg("-usehd", DEFAULT_USE_HD_WALLET) && !walletInstance->IsHDEnabled()) {
-            if (gArgs.GetArg("-mnemonicpassphrase", "").size() > 256) {
-                return error(_("Mnemonic passphrase is too long, must be at most 256 characters"));
+            std::string strSeed = gArgs.GetArg("-hdseed", "not hex");
+
+            if (gArgs.IsArgSet("-hdseed") && IsHex(strSeed)) {
+                CHDChain newHdChain;
+                std::vector<unsigned char> vchSeed = ParseHex(strSeed);
+                if (!newHdChain.SetSeed(SecureVector(vchSeed.begin(), vchSeed.end()), true)) {
+                    throw std::runtime_error(std::string(__func__) + ": SetSeed failed");
+                }
+                if (!walletInstance->SetHDChainSingle(newHdChain, false)) {
+                    throw std::runtime_error(std::string(__func__) + ": SetHDChainSingle failed");
+                }
+                newHdChain.Debug(__func__);
+            } else {
+                if (gArgs.IsArgSet("-hdseed") && !IsHex(strSeed)) {
+                    LogPrintf("%s -- Incorrect seed, generating a random mnemonic instead\n", __func__);
+                }
+                SecureString secureMnemonic = gArgs.GetArg("-mnemonic", "").c_str();
+                SecureString secureMnemonicPassphrase = gArgs.GetArg("-mnemonicpassphrase", "").c_str();
+                walletInstance->GenerateNewHDChain(secureMnemonic, secureMnemonicPassphrase);
             }
-            // generate a new master key
-            walletInstance->GenerateNewHDChain();
 
             // ensure this wallet.dat can only be opened by clients supporting HD
+            LogPrintf("Upgrading wallet to HD\n");
             walletInstance->SetMinVersion(FEATURE_HD);
+
+            // clean up
+            gArgs.ForceRemoveArg("-hdseed");
+            gArgs.ForceRemoveArg("-mnemonic");
+            gArgs.ForceRemoveArg("-mnemonicpassphrase");
         }
 
         // Top up the keypool
@@ -5410,11 +5440,11 @@ bool CWallet::AutoBackupWallet(const fs::path& wallet_path, std::string& strBack
     return true;
 }
 
-void CWallet::NotifyTransactionLock(const CTransaction &tx, const llmq::CInstantSendLock& islock)
+void CWallet::NotifyTransactionLock(const CTransactionRef &tx, const std::shared_ptr<const llmq::CInstantSendLock>& islock)
 {
     LOCK(cs_wallet);
     // Only notify UI if this transaction is in this wallet
-    uint256 txHash = tx.GetHash();
+    uint256 txHash = tx->GetHash();
     std::map<uint256, CWalletTx>::const_iterator mi = mapWallet.find(txHash);
     if (mi != mapWallet.end()){
         NotifyTransactionChanged(this, txHash, CT_UPDATED);
@@ -5429,7 +5459,7 @@ void CWallet::NotifyTransactionLock(const CTransaction &tx, const llmq::CInstant
     }
 }
 
-void CWallet::NotifyChainLock(const CBlockIndex* pindexChainLock, const llmq::CChainLockSig& clsig)
+void CWallet::NotifyChainLock(const CBlockIndex* pindexChainLock, const std::shared_ptr<const llmq::CChainLockSig>& clsig)
 {
     NotifyChainLockReceived(pindexChainLock->nHeight);
 }

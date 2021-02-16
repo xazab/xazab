@@ -60,6 +60,7 @@ BASE_SCRIPTS= [
     # Longest test should go first, to favor running tests in parallel
     'feature_dip3_deterministicmns.py', # NOTE: needs xazab_hash to pass
     'feature_block_reward_reallocation.py',
+    'feature_llmq_data_recovery.py',
     'wallet_hd.py',
     'wallet_backup.py',
     # vv Tests less than 5m vv
@@ -67,6 +68,7 @@ BASE_SCRIPTS= [
     'rpc_fundrawtransaction.py',
     'rpc_fundrawtransaction_hd.py',
     'wallet_multiwallet.py --usecli',
+    'p2p_quorum_data.py',
     # vv Tests less than 2m vv
     'p2p_instantsend.py',
     'wallet_basic.py',
@@ -142,9 +144,11 @@ BASE_SCRIPTS= [
     'wallet_listsinceblock.py',
     'p2p_leak.py',
     'p2p_compactblocks.py',
+    'p2p_connect_to_devnet.py',
     'feature_sporks.py',
     'rpc_getblockstats.py',
     'wallet_encryption.py',
+    'wallet_upgradetohd.py',
     'feature_dersig.py',
     'feature_cltv.py',
     'feature_new_quorum_type_activation.py',
@@ -156,6 +160,8 @@ BASE_SCRIPTS= [
     'feature_shutdown.py',
     'rpc_privatesend.py',
     'rpc_masternode.py',
+    'rpc_mnauth.py',
+    'rpc_verifyislock.py',
     'p2p_fingerprint.py',
     'rpc_platform_filter.py',
     'feature_dip0020_activation.py',

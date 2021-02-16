@@ -5,7 +5,7 @@
 #include <governance/governance-object.h>
 #include <governance/governance-validators.h>
 
-#include <base58.h>
+#include <key_io.h>
 #include <timedata.h>
 #include <tinyformat.h>
 #include <utilstrencodings.h>
@@ -315,8 +315,6 @@ bool CProposalValidator::CheckURL(const std::string& strURLIn)
     std::string::size_type nPos = strRest.find(':');
 
     if (nPos != std::string::npos) {
-        //std::string strSchema = strRest.substr(0,nPos);
-
         if (nPos < strRest.size()) {
             strRest = strRest.substr(nPos + 1);
         } else {

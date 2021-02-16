@@ -117,7 +117,7 @@ bool SelectCoinsBnB(std::vector<CInputCoin>& utxo_pool, const CAmount& target_va
             while (!curr_selection.empty() && !curr_selection.back()) {
                 curr_selection.pop_back();
                 curr_available_value += utxo_pool.at(curr_selection.size()).effective_value;
-            };
+            }
 
             if (curr_selection.empty()) { // We have walked back to the first utxo and no branch is untraversed. All solutions searched
                 break;
@@ -261,7 +261,7 @@ bool KnapsackSolver(const CAmount& nTargetValue, std::vector<CInputCoin>& vCoins
     std::vector<CInputCoin> vValue;
     CAmount nTotalLower = 0;
 
-    random_shuffle(vCoins.begin(), vCoins.end(), GetRandInt);
+    Shuffle(vCoins.begin(), vCoins.end(), FastRandomContext());
 
     int tryDenomStart = 0;
     CAmount nMinChange = MIN_CHANGE;

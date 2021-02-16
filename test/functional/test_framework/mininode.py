@@ -63,6 +63,9 @@ MESSAGEMAP = {
     b"notfound": None,
     b"qfcommit": None,
     b"qsendrecsigs": None,
+    b"qgetdata": msg_qgetdata,
+    b"qdata": msg_qdata,
+    b"qwatch" : None,
     b"senddsq": None,
     b"spork": None,
 }
@@ -96,7 +99,7 @@ class P2PConnection(asyncore.dispatcher):
     def is_connected(self):
         return self._conn_open
 
-    def peer_connect(self, dstaddr, dstport, net="regtest", devnet_name=None):
+    def peer_connect(self, dstaddr, dstport, *, net, devnet_name=None, uacomment=None):
         self.dstaddr = dstaddr
         self.dstport = dstport
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -106,7 +109,18 @@ class P2PConnection(asyncore.dispatcher):
         self._asyncore_pre_connection = True
         self.network = net
         self.devnet_name = devnet_name
+        self.uacomment = uacomment
         self.disconnect = False
+
+        if self.network == "devnet" and self.devnet_name is not None:
+            if self.uacomment is None:
+                self.strSubVer = MY_SUBVERSION % ("(devnet=devnet-%s)" % self.devnet_name).encode()
+            else:
+                self.strSubVer = MY_SUBVERSION % ("(devnet=devnet-%s,%s)" % (self.devnet_name, self.uacomment)).encode()
+        elif self.uacomment is not None:
+            self.strSubVer = MY_SUBVERSION % ("(%s)" % self.uacomment).encode()
+        else:
+            self.strSubVer = MY_SUBVERSION % b""
 
         logger.debug('Connecting to Xazab Node: %s:%d' % (self.dstaddr, self.dstport))
 
@@ -301,8 +315,7 @@ class P2PInterface(P2PConnection):
             vt.addrTo.port = self.dstport
             vt.addrFrom.ip = "0.0.0.0"
             vt.addrFrom.port = 0
-            if self.network == "devnet" and self.devnet_name is not None:
-                vt.strSubVer = MY_SUBVERSION_DEVNET % self.devnet_name.encode()
+            vt.strSubVer = self.strSubVer
             self.sendbuf = self._build_message(vt)  # Will be sent right after handle_connect
 
     # Message receiving methods
@@ -363,6 +376,10 @@ class P2PInterface(P2PConnection):
     def on_mnlistdiff(self, message): pass
     def on_clsig(self, message): pass
     def on_islock(self, message): pass
+
+    def on_qgetdata(self, message): pass
+    def on_qdata(self, message): pass
+    def on_qwatch(self, message): pass
 
     def on_verack(self, message):
         self.verack_received = True

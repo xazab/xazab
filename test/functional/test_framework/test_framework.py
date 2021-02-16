@@ -49,6 +49,7 @@ from .util import (
     sync_blocks,
     sync_mempools,
     wait_until,
+    get_chain_folder,
 )
 
 class TestStatus(Enum):
@@ -80,6 +81,7 @@ class BitcoinTestFramework():
 
     def __init__(self):
         """Sets test framework defaults. Do not override this method. Instead, override the set_test_params() method"""
+        self.chain = 'regtest'
         self.setup_clean_chain = False
         self.nodes = []
         self.mocktime = 0
@@ -279,7 +281,7 @@ class BitcoinTestFramework():
         assert_equal(len(binary), num_nodes)
         old_num_nodes = len(self.nodes)
         for i in range(num_nodes):
-            self.nodes.append(TestNode(old_num_nodes + i, get_datadir_path(self.options.tmpdir, old_num_nodes + i), self.extra_args_from_options, rpchost=rpchost, timewait=timewait, bitcoind=binary[i], bitcoin_cli=self.options.bitcoincli, stderr=stderr, mocktime=self.mocktime, coverage_dir=self.options.coveragedir, extra_conf=extra_confs[i], extra_args=extra_args[i], use_cli=self.options.usecli))
+            self.nodes.append(TestNode(old_num_nodes + i, get_datadir_path(self.options.tmpdir, old_num_nodes + i), self.extra_args_from_options, chain=self.chain, rpchost=rpchost, timewait=timewait, bitcoind=binary[i], bitcoin_cli=self.options.bitcoincli, stderr=stderr, mocktime=self.mocktime, coverage_dir=self.options.coveragedir, extra_conf=extra_confs[i], extra_args=extra_args[i], use_cli=self.options.usecli))
 
     def start_node(self, i, *args, **kwargs):
         """Start a xazabd"""
@@ -444,13 +446,13 @@ class BitcoinTestFramework():
             # Create cache directories, run xazabds:
             self.set_genesis_mocktime()
             for i in range(MAX_NODES):
-                datadir = initialize_datadir(self.options.cachedir, i)
+                datadir = initialize_datadir(self.options.cachedir, i, self.chain)
                 args = [self.options.bitcoind, "-datadir=" + datadir, "-mocktime="+str(GENESISTIME)]
                 if i > 0:
                     args.append("-connect=127.0.0.1:" + str(p2p_port(0)))
                 if extra_args is not None:
                     args.extend(extra_args)
-                self.nodes.append(TestNode(i, get_datadir_path(self.options.cachedir, i), extra_conf=["bind=127.0.0.1"], extra_args=[],extra_args_from_options=self.extra_args_from_options, rpchost=None, timewait=None, bitcoind=self.options.bitcoind, bitcoin_cli=self.options.bitcoincli, stderr=stderr, mocktime=self.mocktime, coverage_dir=None))
+                self.nodes.append(TestNode(i, get_datadir_path(self.options.cachedir, i), chain=self.chain, extra_conf=["bind=127.0.0.1"], extra_args=[],extra_args_from_options=self.extra_args_from_options, rpchost=None, timewait=None, bitcoind=self.options.bitcoind, bitcoin_cli=self.options.bitcoincli, stderr=stderr, mocktime=self.mocktime, coverage_dir=None))
                 self.nodes[i].args = args
                 self.start_node(i)
 
@@ -481,7 +483,8 @@ class BitcoinTestFramework():
             self.disable_mocktime()
 
             def cache_path(n, *paths):
-                return os.path.join(get_datadir_path(self.options.cachedir, n), "regtest", *paths)
+                chain = get_chain_folder(get_datadir_path(self.options.cachedir, n), self.chain)
+                return os.path.join(get_datadir_path(self.options.cachedir, n), chain, *paths)
 
             for i in range(MAX_NODES):
                 for entry in os.listdir(cache_path(i)):
@@ -500,7 +503,7 @@ class BitcoinTestFramework():
         Create an empty blockchain and num_nodes wallets.
         Useful if a test case wants complete control over initialization."""
         for i in range(self.num_nodes):
-            initialize_datadir(self.options.tmpdir, i)
+            initialize_datadir(self.options.tmpdir, i, self.chain)
 
    if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight){
     MASTERNODE_COLLATERAL = 15000
@@ -545,16 +548,26 @@ class XazabTestFramework(BitcoinTestFramework):
         self.llmq_size = 3
         self.llmq_threshold = 2
 
+        # This is nRequestTimeout in dash-q-recovery thread
+        self.quorum_data_thread_request_timeout_seconds = 10
+        # This is EXPIRATION_TIMEOUT in CQuorumDataRequest
+        self.quorum_data_request_expiration_timeout = 300
+
     def set_xazab_dip8_activation(self, activate_after_block):
         self.dip8_activation_height = activate_after_block
         for i in range(0, self.num_nodes):
             self.extra_args[i].append("-dip8params=%d" % (activate_after_block))
 
-    def activate_dip8(self):
+    def activate_dip8(self, slow_mode=False):
+        # NOTE: set slow_mode=True if you are activating dip8 after a huge reorg
+        # or nodes might fail to catch up otherwise due to a large
+        # (MAX_BLOCKS_IN_TRANSIT_PER_PEER = 16 blocks) reorg error.
         self.log.info("Wait for dip0008 activation")
         while self.nodes[0].getblockcount() < self.dip8_activation_height:
             self.nodes[0].generate(10)
-        self.sync_blocks(self.nodes)
+            if slow_mode:
+                self.sync_blocks()
+        self.sync_blocks()
 
     def set_xazab_llmq_test_params(self, llmq_size, llmq_threshold):
         self.llmq_size = llmq_size
@@ -623,7 +636,7 @@ class XazabTestFramework(BitcoinTestFramework):
 
         self.log.info("Prepared masternode %d: collateral_txid=%s, collateral_vout=%d, protxHash=%s" % (idx, txid, collateral_vout, proTxHash))
 
-    def remove_mastermode(self, idx):
+    def remove_masternode(self, idx):
         mn = self.mninfo[idx]
         rawtx = self.nodes[0].createrawtransaction([{"txid": mn.collateral_txid, "vout": mn.collateral_vout}], {self.nodes[0].getnewaddress(): 999.9999})
         rawtx = self.nodes[0].signrawtransactionwithwallet(rawtx)
@@ -640,7 +653,7 @@ class XazabTestFramework(BitcoinTestFramework):
 
         start_idx = len(self.nodes)
         for idx in range(0, self.mn_count):
-            copy_datadir(0, idx + start_idx, self.options.tmpdir)
+            copy_datadir(0, idx + start_idx, self.options.tmpdir, self.chain)
 
         # restart faucet node
         self.start_node(0)
@@ -847,7 +860,7 @@ class XazabTestFramework(BitcoinTestFramework):
             all_ok = True
             for node in nodes:
                 s = node.quorum("dkgstatus")
-                if s["session"] == {}:
+                if 'llmq_test' not in s["session"]:
                     continue
                 if "quorumConnections" not in s:
                     all_ok = False
@@ -877,7 +890,7 @@ class XazabTestFramework(BitcoinTestFramework):
 
             for mn in mninfos:
                 s = mn.node.quorum('dkgstatus')
-                if s["session"] == {}:
+                if 'llmq_test' not in s["session"]:
                     continue
                 if "quorumConnections" not in s:
                     return ret()
@@ -963,6 +976,7 @@ class XazabTestFramework(BitcoinTestFramework):
 
     def mine_quorum(self, expected_connections=None, expected_members=None, expected_contributions=None, expected_complaints=0, expected_justifications=0, expected_commitments=None, mninfos_online=None, mninfos_valid=None):
         spork21_active = self.nodes[0].spork('show')['SPORK_21_QUORUM_ALL_CONNECTED'] <= 1
+        spork23_active = self.nodes[0].spork('show')['SPORK_23_QUORUM_POSE'] <= 1
 
         if expected_connections is None:
             expected_connections = (self.llmq_size - 1) if spork21_active else 2
@@ -995,7 +1009,7 @@ class XazabTestFramework(BitcoinTestFramework):
         self.log.info("Waiting for phase 1 (init)")
         self.wait_for_quorum_phase(q, 1, expected_members, None, 0, mninfos_online)
         self.wait_for_quorum_connections(expected_connections, nodes, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
-        if spork21_active:
+        if spork23_active:
             self.wait_for_masternode_probes(mninfos_valid, wait_proc=lambda: self.bump_mocktime(1, nodes=nodes))
         self.bump_mocktime(1, nodes=nodes)
         self.nodes[0].generate(2)
@@ -1033,6 +1047,7 @@ class XazabTestFramework(BitcoinTestFramework):
 
         self.log.info("Mining final commitment")
         self.bump_mocktime(1, nodes=nodes)
+        self.nodes[0].getblocktemplate() # this calls CreateNewBlock
         self.nodes[0].generate(1)
         sync_blocks(nodes)
 
@@ -1077,6 +1092,37 @@ class XazabTestFramework(BitcoinTestFramework):
             if mn.proTxHash == proTxHash:
                 return mn
         return None
+
+    def test_mn_quorum_data(self, test_mn, quorum_type_in, quorum_hash_in, expect_secret=True):
+        quorum_info = test_mn.node.quorum("info", quorum_type_in, quorum_hash_in, True)
+        if expect_secret != ("secretKeyShare" in quorum_info):
+            return False
+        if "members" not in quorum_info or len(quorum_info["members"]) == 0:
+            return False
+        pubkey_count = 0
+        valid_count = 0
+        for quorum_member in quorum_info["members"]:
+            valid_count += quorum_member["valid"]
+            pubkey_count += "pubKeyShare" in quorum_member
+        return pubkey_count == valid_count
+
+    def wait_for_quorum_data(self, mns, quorum_type_in, quorum_hash_in, expect_secret=True, recover=False, timeout=60):
+        def test_mns():
+            valid = 0
+            if recover:
+                if self.mocktime % 2:
+                    self.bump_mocktime(self.quorum_data_request_expiration_timeout + 1)
+                    self.nodes[0].generate(1)
+                else:
+                    self.bump_mocktime(self.quorum_data_thread_request_timeout_seconds + 1)
+
+            for test_mn in mns:
+                valid += self.test_mn_quorum_data(test_mn, quorum_type_in, quorum_hash_in, expect_secret)
+            self.log.debug("wait_for_quorum_data: %d/%d - quorum_type=%d quorum_hash=%s" %
+                           (valid, len(mns), quorum_type_in, quorum_hash_in))
+            return valid == len(mns)
+
+        wait_until(test_mns, timeout=timeout, sleep=0.5)
 
     def wait_for_mnauth(self, node, count, timeout=10):
         def test():

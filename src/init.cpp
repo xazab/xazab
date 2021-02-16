@@ -64,6 +64,7 @@
 #include <evo/deterministicmns.h>
 #include <llmq/quorums_init.h>
 #include <llmq/quorums_blockprocessor.h>
+#include <llmq/quorums_utils.h>
 
 #include <statsd_client.h>
 
@@ -306,6 +307,10 @@ void PrepareShutdown()
     if (pcoinsTip != nullptr) {
         FlushStateToDisk();
     }
+
+    // After there are no more peers/RPC left to give us new data which may generate
+    // CValidationInterface callbacks, flush them...
+    GetMainSignals().FlushBackgroundCallbacks();
 
     // Any future callbacks will be dropped. This should absolutely be safe - if
     // missing a callback results in an unrecoverable situation, unclean shutdown
@@ -593,6 +598,12 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-debugexclude=<category>", strprintf(_("Exclude debugging information for a category. Can be used in conjunction with -debug=1 to output debug logs for all categories except one or more specified categories.")));
     strUsage += HelpMessageOpt("-disablegovernance", strprintf(_("Disable governance validation (0-1, default: %u)"), 0));
     strUsage += HelpMessageOpt("-help-debug", _("Show all debugging options (usage: --help -help-debug)"));
+    strUsage += HelpMessageOpt("-highsubsidyblocks=<n>", _("The number of blocks with a higher than normal subsidy to mine at the start of a devnet (default: 0)"));
+    strUsage += HelpMessageOpt("-highsubsidyfactor=<n>", _("The factor to multiply the normal block subsidy by while in the highsubsidyblocks window of a devnet (default: 1)"));
+    strUsage += HelpMessageOpt("-llmqchainlocks=<quorum name>", _("Override the default LLMQ type used for ChainLocks on a devnet. Allows using ChainLocks with smaller LLMQs. (default: llmq50_60)"));
+    strUsage += HelpMessageOpt("-llmqdevnetparams=<size:threshold>", _("Override the default LLMQ size for the LLMQ_DEVNET quorum (default: 10:6)"));
+    strUsage += HelpMessageOpt("-llmqinstantsend=<quorum name>", _("Override the default LLMQ type used for InstantSend on a devnet. Allows using InstantSend with smaller LLMQs. (default: llmq50_60)"));
+    strUsage += HelpMessageOpt("-llmqtestparams=<size:threshold>", _("Override the default LLMQ size for the LLMQ_TEST quorum (default: 3:2)"));
     strUsage += HelpMessageOpt("-logips", strprintf(_("Include IP addresses in debug output (default: %u)"), DEFAULT_LOGIPS));
     if (showDebug)
     {
@@ -605,6 +616,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-logtimestamps", strprintf(_("Prepend debug output with timestamp (default: %u)"), DEFAULT_LOGTIMESTAMPS));
     strUsage += HelpMessageOpt("-maxtxfee=<amt>", strprintf(_("Maximum total fees (in %s) to use in a single wallet transaction or raw transaction; setting this too low may abort large transactions (default: %s)"),
         CURRENCY_UNIT, FormatMoney(DEFAULT_TRANSACTION_MAXFEE)));
+    strUsage += HelpMessageOpt("-minimumdifficultyblocks=<n>", _("The number of blocks that can be mined with the minimum difficulty at the start of a devnet (default: 0)"));
     strUsage += HelpMessageOpt("-minsporkkeys=<n>", strprintf(_("Overrides minimum spork signers to change spork value. Only useful for regtest and devnet. Using this on mainnet or testnet will ban you.")));
     if (showDebug)
     {
@@ -614,10 +626,13 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-printtodebuglog", strprintf(_("Send trace/debug info to debug.log file (default: %u)"), 1));
     strUsage += HelpMessageOpt("-shrinkdebugfile", _("Shrink debug.log file on client startup (default: 1 when no -debug)"));
     strUsage += HelpMessageOpt("-sporkaddr=<xazabaddress>", strprintf(_("Override spork address. Only useful for regtest and devnet. Using this on mainnet or testnet will ban you.")));
+    strUsage += HelpMessageOpt("-sporkkey=<privatekey>", _("Set the private key to be used for signing spork messages."));
     strUsage += HelpMessageOpt("-uacomment=<cmt>", _("Append comment to the user agent string"));
     AppendParamsHelpMessages(strUsage, showDebug);
 
     strUsage += HelpMessageGroup(_("Masternode options:"));
+    strUsage += HelpMessageOpt("-llmq-data-recovery=<n>", _("Enable automated quorum data recovery (default: 1)"));
+    strUsage += HelpMessageOpt("-llmq-qvvec-sync=<quorum name>", _("Defines from which LLMQ type the masternode should sync quorum verification vectors. Can be used multiple times with different LLMQ types."));
     strUsage += HelpMessageOpt("-masternodeblsprivkey=<hex>", _("Set the masternode BLS private key and enable the client to act as a masternode"));
     strUsage += HelpMessageOpt("-platform-user=<user>", _("Set the username for the \"platform user\", a restricted user intended to be used by Xazab Platform, to the specified username."));
 
@@ -899,7 +914,6 @@ void PeriodicStats()
         // something went wrong
         LogPrintf("%s: GetUTXOStats failed\n", __func__);
     }
-    statsClient.gauge("transactions.txCacheSize", pcoinsTip->GetCacheSize(), 1.0f);
 
     // short version of GetNetworkHashPS(120, -1);
     CBlockIndex *tip;
@@ -921,12 +935,15 @@ void PeriodicStats()
     int64_t timeDiff = maxTime - minTime;
     double nNetworkHashPS = workDiff.getdouble() / timeDiff;
 
-    statsClient.gauge("network.hashesPerSecond", nNetworkHashPS);
-    statsClient.gauge("network.terahashesPerSecond", nNetworkHashPS / 1e12);
-    statsClient.gauge("network.petahashesPerSecond", nNetworkHashPS / 1e15);
-    statsClient.gauge("network.exahashesPerSecond", nNetworkHashPS / 1e18);
+    statsClient.gaugeDouble("network.hashesPerSecond", nNetworkHashPS);
+    statsClient.gaugeDouble("network.terahashesPerSecond", nNetworkHashPS / 1e12);
+    statsClient.gaugeDouble("network.petahashesPerSecond", nNetworkHashPS / 1e15);
+    statsClient.gaugeDouble("network.exahashesPerSecond", nNetworkHashPS / 1e18);
     // No need for cs_main, we never use null tip here
-    statsClient.gauge("network.difficulty", (double)GetDifficulty(tip));
+    statsClient.gaugeDouble("network.difficulty", (double)GetDifficulty(tip));
+
+    statsClient.gauge("transactions.txCacheSize", pcoinsTip->GetCacheSize(), 1.0f);
+    statsClient.gauge("transactions.totalTransactions", tip->nChainTx, 1.0f);
 
     statsClient.gauge("transactions.mempool.totalTransactions", mempool.size(), 1.0f);
     statsClient.gauge("transactions.mempool.totalTxBytes", (int64_t) mempool.GetTotalTxSize(), 1.0f);
@@ -1535,20 +1552,30 @@ bool AppInitParameterInteraction()
     }
 
     if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
-        std::string llmqTypeChainLocks = gArgs.GetArg("-llmqchainlocks", Params().GetConsensus().llmqs.at(Params().GetConsensus().llmqTypeChainLocks).name);
-        Consensus::LLMQType llmqType = Consensus::LLMQ_NONE;
+        std::string strLLMQTypeChainLocks = gArgs.GetArg("-llmqchainlocks", Params().GetConsensus().llmqs.at(Params().GetConsensus().llmqTypeChainLocks).name);
+        std::string strLLMQTypeInstantSend = gArgs.GetArg("-llmqinstantsend", Params().GetConsensus().llmqs.at(Params().GetConsensus().llmqTypeInstantSend).name);
+        Consensus::LLMQType llmqTypeChainLocks = Consensus::LLMQ_NONE;
+        Consensus::LLMQType llmqTypeInstantSend = Consensus::LLMQ_NONE;
         for (const auto& p : Params().GetConsensus().llmqs) {
-            if (p.second.name == llmqTypeChainLocks) {
-                llmqType = p.first;
-                break;
+            if (p.second.name == strLLMQTypeChainLocks) {
+                llmqTypeChainLocks = p.first;
+            }
+            if (p.second.name == strLLMQTypeInstantSend) {
+                llmqTypeInstantSend = p.first;
             }
         }
-        if (llmqType == Consensus::LLMQ_NONE) {
+        if (llmqTypeChainLocks == Consensus::LLMQ_NONE) {
             return InitError("Invalid LLMQ type specified for -llmqchainlocks.");
         }
-        UpdateDevnetLLMQChainLocks(llmqType);
+        if (llmqTypeInstantSend == Consensus::LLMQ_NONE) {
+            return InitError("Invalid LLMQ type specified for -llmqinstantsend.");
+        }
+        UpdateDevnetLLMQChainLocks(llmqTypeChainLocks);
+        UpdateDevnetLLMQInstantSend(llmqTypeInstantSend);
     } else if (gArgs.IsArgSet("-llmqchainlocks")) {
         return InitError("LLMQ type for ChainLocks can only be overridden on devnet.");
+    } else if (gArgs.IsArgSet("-llmqinstantsend")) {
+        return InitError("LLMQ type for InstantSend can only be overridden on devnet.");
     }
 
     if (chainparams.NetworkIDString() == CBaseChainParams::DEVNET) {
@@ -1579,6 +1606,16 @@ bool AppInitParameterInteraction()
         }
     } else if (gArgs.IsArgSet("-llmqtestparams")) {
         return InitError("LLMQ test params can only be overridden on regtest.");
+    }
+
+    try {
+        const bool fRecoveryEnabled{llmq::CLLMQUtils::QuorumDataRecoveryEnabled()};
+        const bool fQuorumVvecRequestsEnabled{llmq::CLLMQUtils::GetEnabledQuorumVvecSyncTypes().size() > 0};
+        if (!fRecoveryEnabled && fQuorumVvecRequestsEnabled) {
+            InitWarning("-llmq-qvvec-sync set but recovery is disabled due to -llmq-data-recovery=0");
+        }
+    } catch (const std::invalid_argument& e) {
+        return InitError(e.what());
     }
 
     if (gArgs.IsArgSet("-maxorphantx")) {
@@ -1745,6 +1782,8 @@ bool AppInitMain()
 
     GetMainSignals().RegisterBackgroundSignalScheduler(scheduler);
     GetMainSignals().RegisterWithMempoolSignals(mempool);
+
+    tableRPC.InitPlatformRestrictions();
 
     /* Register RPC commands regardless of -server setting so they will be
      * available in the GUI RPC console even if external calls are disabled.
@@ -2102,6 +2141,8 @@ bool AppInitMain()
                         strLoadError = _("Corrupted block database detected");
                         break;
                     }
+
+                    ResetBlockFailureFlags(nullptr);
                 }
             } catch (const std::exception& e) {
                 LogPrintf("%s\n", e.what());

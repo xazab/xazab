@@ -122,7 +122,7 @@ void CDKGSessionHandler::UpdatedBlockTip(const CBlockIndex* pindexNew)
             params.name, currentHeight, quorumHeight, oldPhase, phase);
 }
 
-void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
+void CDKGSessionHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
 {
     // We don't handle messages in the calling thread as deserialization/processing of these would block everything
     if (strCommand == NetMsgType::QCONTRIB) {
@@ -156,10 +156,6 @@ void CDKGSessionHandler::StopThread()
 
 bool CDKGSessionHandler::InitNewQuorum(const CBlockIndex* pindexQuorum)
 {
-    //AssertLockHeld(cs_main);
-
-    const auto& consensus = Params().GetConsensus();
-
     curSession = std::make_shared<CDKGSession>(params, blsWorker, dkgManager);
 
     if (!deterministicMNManager->IsDIP3Enforced(pindexQuorum->nHeight)) {
@@ -433,37 +429,31 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         return false;
     }
 
-    std::vector<uint256> hashes;
     std::vector<std::pair<NodeId, std::shared_ptr<Message>>> preverifiedMessages;
-    hashes.reserve(msgs.size());
     preverifiedMessages.reserve(msgs.size());
 
     for (const auto& p : msgs) {
+        const NodeId &nodeId = p.first;
         if (!p.second) {
-            LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, p.first);
+            LogPrint(BCLog::LLMQ_DKG, "%s -- failed to deserialize message, peer=%d\n", __func__, nodeId);
             {
                 LOCK(cs_main);
-                Misbehaving(p.first, 100);
+                Misbehaving(nodeId, 100);
             }
             continue;
         }
-        const auto& msg = *p.second;
-
-        auto hash = ::SerializeHash(msg);
-
         bool ban = false;
-        if (!session.PreVerifyMessage(hash, msg, ban)) {
+        if (!session.PreVerifyMessage(*p.second, ban)) {
             if (ban) {
-                LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, p.first);
+                LogPrint(BCLog::LLMQ_DKG, "%s -- banning node due to failed preverification, peer=%d\n", __func__, nodeId);
                 {
                     LOCK(cs_main);
-                    Misbehaving(p.first, 100);
+                    Misbehaving(nodeId, 100);
                 }
             }
-            LogPrint(BCLog::LLMQ_DKG, "%s -- skipping message due to failed preverification, peer=%d\n", __func__, p.first);
+            LogPrint(BCLog::LLMQ_DKG, "%s -- skipping message due to failed preverification, peer=%d\n", __func__, nodeId);
             continue;
         }
-        hashes.emplace_back(hash);
         preverifiedMessages.emplace_back(p);
     }
     if (preverifiedMessages.empty()) {
@@ -479,14 +469,13 @@ bool ProcessPendingMessageBatch(CDKGSession& session, CDKGPendingMessages& pendi
         }
     }
 
-    for (size_t i = 0; i < preverifiedMessages.size(); i++) {
-        NodeId nodeId = preverifiedMessages[i].first;
+    for (const auto& p : preverifiedMessages) {
+        const NodeId &nodeId = p.first;
         if (badNodes.count(nodeId)) {
             continue;
         }
-        const auto& msg = *preverifiedMessages[i].second;
         bool ban = false;
-        session.ReceiveMessage(hashes[i], msg, ban);
+        session.ReceiveMessage(*p.second, ban);
         if (ban) {
             LogPrint(BCLog::LLMQ_DKG, "%s -- banning node after ReceiveMessage failed, peer=%d\n", __func__, nodeId);
             LOCK(cs_main);
@@ -534,7 +523,7 @@ void CDKGSessionHandler::HandleDKGRound()
     });
 
     CLLMQUtils::EnsureQuorumConnections(params.type, pindexQuorum, curSession->myProTxHash, gArgs.GetBoolArg("-watchquorums", DEFAULT_WATCH_QUORUMS));
-    if (curSession->AreWeMember() && CLLMQUtils::IsAllMembersConnectedEnabled(params.type)) {
+    if (curSession->AreWeMember()) {
         CLLMQUtils::AddQuorumProbeConnections(params.type, pindexQuorum, curSession->myProTxHash);
     }
 

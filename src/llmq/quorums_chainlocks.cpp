@@ -88,7 +88,7 @@ CChainLockSig CChainLocksHandler::GetBestChainLock()
     return bestChainLock;
 }
 
-void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
+void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
 {
     if (!AreChainLocksEnabled()) {
         return;
@@ -104,11 +104,13 @@ void CChainLocksHandler::ProcessMessage(CNode* pfrom, const std::string& strComm
     }
 }
 
-void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLockSig& clsig, const uint256& hash)
+void CChainLocksHandler::ProcessNewChainLock(const NodeId from, const llmq::CChainLockSig& clsig, const uint256& hash)
 {
+    CInv clsigInv(MSG_CLSIG, hash);
+
     if (from != -1) {
         LOCK(cs_main);
-        EraseObjectRequest(from, CInv(MSG_CLSIG, hash));
+        EraseObjectRequest(from, clsigInv);
     }
 
     {
@@ -123,9 +125,8 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
         }
     }
 
-    uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.nHeight));
-    uint256 msgHash = clsig.blockHash;
-    if (!quorumSigningManager->VerifyRecoveredSig(Params().GetConsensus().llmqTypeChainLocks, clsig.nHeight, requestId, msgHash, clsig.sig)) {
+    const uint256 requestId = ::SerializeHash(std::make_pair(CLSIG_REQUESTID_PREFIX, clsig.nHeight));
+    if (!quorumSigningManager->VerifyRecoveredSig(Params().GetConsensus().llmqTypeChainLocks, clsig.nHeight, requestId, clsig.blockHash, clsig.sig)) {
         LogPrint(BCLog::CHAINLOCKS, "CChainLocksHandler::%s -- invalid CLSIG (%s), peer=%d\n", __func__, clsig.ToString(), from);
         if (from != -1) {
             LOCK(cs_main);
@@ -136,20 +137,10 @@ void CChainLocksHandler::ProcessNewChainLock(NodeId from, const llmq::CChainLock
 
     {
         LOCK2(cs_main, cs);
-
-        if (InternalHasConflictingChainLock(clsig.nHeight, clsig.blockHash)) {
-            // This should not happen. If it happens, it means that a malicious entity controls a large part of the MN
-            // network. In this case, we don't allow him to reorg older chainlocks.
-            LogPrintf("CChainLocksHandler::%s -- new CLSIG (%s) tries to reorg previous CLSIG (%s), peer=%d\n",
-                      __func__, clsig.ToString(), bestChainLock.ToString(), from);
-            return;
-        }
-
         bestChainLockHash = hash;
         bestChainLock = clsig;
 
-        CInv inv(MSG_CLSIG, hash);
-        g_connman->RelayInv(inv, LLMQS_PROTO_VERSION);
+        g_connman->RelayInv(clsigInv, LLMQS_PROTO_VERSION);
 
         const CBlockIndex* pindex = LookupBlockIndex(clsig.blockHash);
         if (!pindex) {
@@ -490,7 +481,7 @@ void CChainLocksHandler::EnforceBestChainLock()
     AssertLockNotHeld(cs);
     AssertLockNotHeld(cs_main);
 
-    CChainLockSig clsig;
+    std::shared_ptr<CChainLockSig> clsig;
     const CBlockIndex* pindex;
     const CBlockIndex* currentBestChainLockBlockIndex;
     {
@@ -500,7 +491,7 @@ void CChainLocksHandler::EnforceBestChainLock()
             return;
         }
 
-        clsig = bestChainLockWithKnownBlock;
+        clsig = std::make_shared<CChainLockSig>(bestChainLockWithKnownBlock);
         pindex = currentBestChainLockBlockIndex = this->bestChainLockBlockIndex;
 
         if (!currentBestChainLockBlockIndex) {
@@ -510,22 +501,28 @@ void CChainLocksHandler::EnforceBestChainLock()
     }
 
     bool activateNeeded;
+    CValidationState state;
+    const auto &params = Params();
     {
         LOCK(cs_main);
 
         // Go backwards through the chain referenced by clsig until we find a block that is part of the main chain.
         // For each of these blocks, check if there are children that are NOT part of the chain referenced by clsig
-        // and invalidate each of them.
+        // and mark all of them as conflicting.
         while (pindex && !chainActive.Contains(pindex)) {
-            // Invalidate all blocks that have the same prevBlockHash but are not equal to blockHash
+            // Mark all blocks that have the same prevBlockHash but are not equal to blockHash as conflicting
             auto itp = mapPrevBlockIndex.equal_range(pindex->pprev->GetBlockHash());
             for (auto jt = itp.first; jt != itp.second; ++jt) {
                 if (jt->second == pindex) {
                     continue;
                 }
-                LogPrintf("CChainLocksHandler::%s -- CLSIG (%s) invalidates block %s\n",
-                          __func__, clsig.ToString(), jt->second->GetBlockHash().ToString());
-                DoInvalidateBlock(jt->second);
+                if (!MarkConflictingBlock(state, params, jt->second)) {
+                    LogPrintf("CChainLocksHandler::%s -- MarkConflictingBlock failed: %s\n", __func__, FormatStateMessage(state));
+                    // This should not have happened and we are in a state were it's not safe to continue anymore
+                    assert(false);
+                }
+                LogPrintf("CChainLocksHandler::%s -- CLSIG (%s) marked block %s as conflicting\n",
+                          __func__, clsig->ToString(), jt->second->GetBlockHash().ToString());
             }
 
             pindex = pindex->pprev;
@@ -541,8 +538,7 @@ void CChainLocksHandler::EnforceBestChainLock()
         activateNeeded = chainActive.Tip()->GetAncestor(currentBestChainLockBlockIndex->nHeight) != currentBestChainLockBlockIndex;
     }
 
-    CValidationState state;
-    if (activateNeeded && !ActivateBestChain(state, Params())) {
+    if (activateNeeded && !ActivateBestChain(state, params)) {
         LogPrintf("CChainLocksHandler::%s -- ActivateBestChain failed: %s\n", __func__, FormatStateMessage(state));
     }
 
@@ -585,24 +581,6 @@ void CChainLocksHandler::HandleNewRecoveredSig(const llmq::CRecoveredSig& recove
         clsig.sig = recoveredSig.sig.Get();
     }
     ProcessNewChainLock(-1, clsig, ::SerializeHash(clsig));
-}
-
-// WARNING, do not hold cs while calling this method as we'll otherwise run into a deadlock
-void CChainLocksHandler::DoInvalidateBlock(const CBlockIndex* pindex)
-{
-    LOCK(cs_main);
-
-    auto& params = Params();
-
-    // get the non-const pointer
-    CBlockIndex* pindex2 = LookupBlockIndex(pindex->GetBlockHash());
-
-    CValidationState state;
-    if (!InvalidateBlock(state, params, pindex2)) {
-        LogPrintf("CChainLocksHandler::%s -- InvalidateBlock failed: %s\n", __func__, FormatStateMessage(state));
-        // This should not have happened and we are in a state were it's not safe to continue anymore
-        assert(false);
-    }
 }
 
 bool CChainLocksHandler::HasChainLock(int nHeight, const uint256& blockHash)

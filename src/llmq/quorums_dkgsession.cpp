@@ -97,6 +97,7 @@ bool CDKGSession::Init(const CBlockIndex* _pindexQuorum, const std::vector<CDete
     memberIds.resize(members.size());
     receivedVvecs.resize(members.size());
     receivedSkContributions.resize(members.size());
+    vecEncryptedContributions.resize(members.size());
 
     for (size_t i = 0; i < mns.size(); i++) {
         members[i] = std::make_unique<CDKGMember>(mns[i], i);
@@ -210,11 +211,9 @@ void CDKGSession::SendContributions(CDKGPendingMessages& pendingMessages)
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGContribution& qc, bool& retBan) const
+bool CDKGSession::PreVerifyMessage(const CDKGContribution& qc, bool& retBan) const
 {
     CDKGLogger logger(*this, __func__);
-
-    cxxtimer::Timer t1(true);
 
     retBan = false;
 
@@ -258,7 +257,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGContribution& 
     return true;
 }
 
-void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGContribution& qc, bool& retBan)
 {
     LOCK(cs_pending);
 
@@ -281,6 +280,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc
             return;
         }
 
+        const uint256 hash = ::SerializeHash(qc);
         contributions.emplace(hash, qc);
         member->contributions.emplace(hash);
 
@@ -344,6 +344,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGContribution& qc
 
     bool verifyPending = false;
     receivedSkContributions[member->idx] = skContribution;
+    vecEncryptedContributions[member->idx] = qc.contributions;
     pendingContributionVerifications.emplace_back(member->idx);
     if (pendingContributionVerifications.size() >= 32) {
         verifyPending = true;
@@ -384,6 +385,9 @@ void CDKGSession::VerifyPendingContributions()
         memberIndexes.emplace_back(idx);
         vvecs.emplace_back(receivedVvecs[idx]);
         skContributions.emplace_back(receivedSkContributions[idx]);
+        // Write here to definitely store one contribution for each member no matter if
+        // our share is valid or not, could be that others are still correct
+        dkgManager.WriteEncryptedContributions(params.type, pindexQuorum, m->dmn->proTxHash, *vecEncryptedContributions[idx]);
     }
 
     auto result = blsWorker.VerifyContributionShares(myId, vvecs, skContributions);
@@ -453,7 +457,7 @@ void CDKGSession::VerifyAndComplain(CDKGPendingMessages& pendingMessages)
 
 void CDKGSession::VerifyConnectionAndMinProtoVersions()
 {
-    if (!CLLMQUtils::IsAllMembersConnectedEnabled(params.type)) {
+    if (!CLLMQUtils::IsQuorumPoseEnabled(params.type)) {
         return;
     }
 
@@ -532,7 +536,7 @@ void CDKGSession::SendComplaint(CDKGPendingMessages& pendingMessages)
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGComplaint& qc, bool& retBan) const
+bool CDKGSession::PreVerifyMessage(const CDKGComplaint& qc, bool& retBan) const
 {
     CDKGLogger logger(*this, __func__);
 
@@ -574,7 +578,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGComplaint& qc,
     return true;
 }
 
-void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGComplaint& qc, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGComplaint& qc, bool& retBan)
 {
     CDKGLogger logger(*this, __func__);
 
@@ -592,6 +596,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGComplaint& qc, b
             return;
         }
 
+        const uint256 hash = ::SerializeHash(qc);
         complaints.emplace(hash, qc);
         member->complaints.emplace(hash);
 
@@ -729,7 +734,7 @@ void CDKGSession::SendJustification(CDKGPendingMessages& pendingMessages, const 
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification& qj, bool& retBan) const
+bool CDKGSession::PreVerifyMessage(const CDKGJustification& qj, bool& retBan) const
 {
     CDKGLogger logger(*this, __func__);
 
@@ -787,7 +792,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGJustification&
     return true;
 }
 
-void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& qj, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGJustification& qj, bool& retBan)
 {
     CDKGLogger logger(*this, __func__);
 
@@ -805,6 +810,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGJustification& q
             return;
         }
 
+        const uint256 hash = ::SerializeHash(qj);
         justifications.emplace(hash, qj);
         member->justifications.emplace(hash);
 
@@ -1050,11 +1056,9 @@ void CDKGSession::SendCommitment(CDKGPendingMessages& pendingMessages)
 }
 
 // only performs cheap verifications, but not the signature of the message. this is checked with batched verification
-bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGPrematureCommitment& qc, bool& retBan) const
+bool CDKGSession::PreVerifyMessage(const CDKGPrematureCommitment& qc, bool& retBan) const
 {
     CDKGLogger logger(*this, __func__);
-
-    cxxtimer::Timer t1(true);
 
     retBan = false;
 
@@ -1112,7 +1116,7 @@ bool CDKGSession::PreVerifyMessage(const uint256& hash, const CDKGPrematureCommi
     return true;
 }
 
-void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGPrematureCommitment& qc, bool& retBan)
+void CDKGSession::ReceiveMessage(const CDKGPrematureCommitment& qc, bool& retBan)
 {
     CDKGLogger logger(*this, __func__);
 
@@ -1123,6 +1127,7 @@ void CDKGSession::ReceiveMessage(const uint256& hash, const CDKGPrematureCommitm
     logger.Batch("received premature commitment from %s. validMembers=%d", qc.proTxHash.ToString(), qc.CountValidMembers());
 
     auto member = GetMember(qc.proTxHash);
+    const uint256 hash = ::SerializeHash(qc);
 
     {
         LOCK(invCs);

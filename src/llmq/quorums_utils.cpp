@@ -50,16 +50,25 @@ uint256 CLLMQUtils::BuildSignHash(Consensus::LLMQType llmqType, const uint256& q
     return h.GetHash();
 }
 
-bool CLLMQUtils::IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType)
+static bool EvalSpork(Consensus::LLMQType llmqType, int64_t spork_value)
 {
-    auto spork21 = sporkManager.GetSporkValue(SPORK_21_QUORUM_ALL_CONNECTED);
-    if (spork21 == 0) {
+    if (spork_value == 0) {
         return true;
     }
-    if (spork21 == 1 && llmqType != Consensus::LLMQ_100_67 && llmqType != Consensus::LLMQ_400_60 && llmqType != Consensus::LLMQ_400_85) {
+    if (spork_value == 1 && llmqType != Consensus::LLMQ_100_67 && llmqType != Consensus::LLMQ_400_60 && llmqType != Consensus::LLMQ_400_85) {
         return true;
     }
     return false;
+}
+
+bool CLLMQUtils::IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType)
+{
+    return EvalSpork(llmqType, sporkManager.GetSporkValue(SPORK_21_QUORUM_ALL_CONNECTED));
+}
+
+bool CLLMQUtils::IsQuorumPoseEnabled(Consensus::LLMQType llmqType)
+{
+    return EvalSpork(llmqType, sporkManager.GetSporkValue(SPORK_23_QUORUM_POSE));
 }
 
 uint256 CLLMQUtils::DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2)
@@ -210,6 +219,10 @@ void CLLMQUtils::EnsureQuorumConnections(Consensus::LLMQType llmqType, const CBl
 
 void CLLMQUtils::AddQuorumProbeConnections(Consensus::LLMQType llmqType, const CBlockIndex *pindexQuorum, const uint256 &myProTxHash)
 {
+    if (!CLLMQUtils::IsQuorumPoseEnabled(llmqType)) {
+        return;
+    }
+
     auto members = GetAllQuorumMembers(llmqType, pindexQuorum);
     auto curTime = GetAdjustedTime();
 
@@ -300,7 +313,34 @@ std::vector<Consensus::LLMQType> CLLMQUtils::GetEnabledQuorumTypes(const CBlockI
     return ret;
 }
 
-Consensus::LLMQParams CLLMQUtils::GetLLMQParams(Consensus::LLMQType llmqType)
+bool CLLMQUtils::QuorumDataRecoveryEnabled()
+{
+    return gArgs.GetBoolArg("-llmq-data-recovery", DEFAULT_ENABLE_QUORUM_DATA_RECOVERY);
+}
+
+std::set<Consensus::LLMQType> CLLMQUtils::GetEnabledQuorumVvecSyncTypes()
+{
+    std::set<Consensus::LLMQType> setQuorumVvecSyncTypes;
+    for (const std::string& strLLMQType : gArgs.GetArgs("-llmq-qvvec-sync")) {
+        Consensus::LLMQType llmqType = Consensus::LLMQ_NONE;
+        for (const auto& p : Params().GetConsensus().llmqs) {
+            if (p.second.name == strLLMQType) {
+                llmqType = p.first;
+                break;
+            }
+        }
+        if (llmqType == Consensus::LLMQ_NONE) {
+            throw std::invalid_argument(strprintf("Invalid llmqType in -llmq-qvvec-sync: %s", strLLMQType));
+        }
+        if (setQuorumVvecSyncTypes.count(llmqType) > 0) {
+            throw std::invalid_argument(strprintf("Duplicated llmqType in -llmq-qvvec-sync: %s", strLLMQType));
+        }
+        setQuorumVvecSyncTypes.emplace(llmqType);
+    }
+    return setQuorumVvecSyncTypes;
+}
+
+const Consensus::LLMQParams& GetLLMQParams(Consensus::LLMQType llmqType)
 {
     return Params().GetConsensus().llmqs.at(llmqType);
 }

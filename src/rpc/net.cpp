@@ -81,8 +81,11 @@ UniValue getpeerinfo(const JSONRPCRequest& request)
             "    \"addrlocal\":\"ip:port\",   (string) Local address as reported by the peer\n"
             "    \"services\":\"xxxxxxxxxxxxxxxx\",   (string) The services offered\n"
             "    \"verified_proregtx_hash\": h, (hex) Only present when the peer is a masternode and succesfully\n"
-            "                               autheticated via MNAUTH. In this case, this field contains the\n"
+            "                               authenticated via MNAUTH. In this case, this field contains the\n"
             "                               protx hash of the masternode\n"
+            "    \"verified_pubkey_hash\":   h, (hex) Only present when the peer is a masternode and succesfully\n"
+            "                               authenticated via MNAUTH. In this case, this field contains the\n"
+            "                               hash of the masternode's operator public key\n"
             "    \"relaytxes\":true|false,    (boolean) Whether peer has asked us to relay transactions to it\n"
             "    \"lastsend\": ttt,           (numeric) The time in seconds since epoch (Jan 1 1970 GMT) of the last send\n"
             "    \"lastrecv\": ttt,           (numeric) The time in seconds since epoch (Jan 1 1970 GMT) of the last receive\n"
@@ -145,6 +148,9 @@ UniValue getpeerinfo(const JSONRPCRequest& request)
         if (!stats.verifiedProRegTxHash.IsNull()) {
             obj.pushKV("verified_proregtx_hash", stats.verifiedProRegTxHash.ToString());
         }
+        if (!stats.verifiedPubKeyHash.IsNull()) {
+            obj.pushKV("verified_pubkey_hash", stats.verifiedPubKeyHash.ToString());
+        }
         obj.pushKV("relaytxes", stats.fRelayTxes);
         obj.pushKV("lastsend", stats.nLastSend);
         obj.pushKV("lastrecv", stats.nLastRecv);
@@ -165,7 +171,7 @@ UniValue getpeerinfo(const JSONRPCRequest& request)
         obj.pushKV("subver", stats.cleanSubVer);
         obj.pushKV("inbound", stats.fInbound);
         obj.pushKV("addnode", stats.m_manual_connection);
-        obj.pushKV("masternode", stats.fMasternode);
+        obj.pushKV("masternode", stats.m_masternode_connection);
         obj.pushKV("startingheight", stats.nStartingHeight);
         if (fStateStats) {
             obj.pushKV("banscore", statestats.nMisbehavior);
@@ -432,7 +438,8 @@ UniValue getnetworkinfo(const JSONRPCRequest& request)
             "\nResult:\n"
             "{\n"
             "  \"version\": xxxxx,                      (numeric) the server version\n"
-            "  \"subversion\": \"/Xazab Core:x.x.x/\",     (string) the server subversion string\n"
+            "  \"buildversion\": \"x.x.x.x-xxx\",         (string) the server build version including RC info or commit as relevant\n"
+            "  \"subversion\": \"/Xazab Core:x.x.x.x/\",   (string) the server subversion string\n"
             "  \"protocolversion\": xxxxx,              (numeric) the protocol version\n"
             "  \"localservices\": \"xxxxxxxxxxxxxxxx\", (string) the services we offer to the network\n"
             "  \"localrelay\": true|false,              (bool) true if transaction relay is requested from peers\n"
@@ -470,6 +477,7 @@ UniValue getnetworkinfo(const JSONRPCRequest& request)
     LOCK(cs_main);
     UniValue obj(UniValue::VOBJ);
     obj.pushKV("version",       CLIENT_VERSION);
+    obj.pushKV("buildversion",  FormatFullVersion());
     obj.pushKV("subversion",    strSubVersion);
     obj.pushKV("protocolversion",PROTOCOL_VERSION);
     if(g_connman)

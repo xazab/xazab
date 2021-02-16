@@ -4,7 +4,6 @@
 
 #include <qt/transactiontablemodel.h>
 
-#include <qt/addresstablemodel.h>
 #include <qt/guiutil.h>
 #include <qt/optionsmodel.h>
 #include <qt/transactiondesc.h>
@@ -78,7 +77,7 @@ public:
         {
             for (const auto& wtx : wallet.getWalletTxs()) {
                 if (TransactionRecord::showTransaction()) {
-                    cachedWallet.append(TransactionRecord::decomposeTransaction(wtx));
+                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, wtx));
                 }
             }
         }
@@ -133,7 +132,7 @@ public:
                 }
                 // Added -- insert at the right position
                 QList<TransactionRecord> toInsert =
-                        TransactionRecord::decomposeTransaction(wtx);
+                        TransactionRecord::decomposeTransaction(wallet, wtx);
                 if(!toInsert.isEmpty()) /* only if something to insert */
                 {
                     parent->beginInsertRows(QModelIndex(), lowerIndex, lowerIndex+toInsert.size()-1);
@@ -170,13 +169,13 @@ public:
         }
     }
 
-    void updateAddressBook(const QString& address, const QString& label, bool isMine, const QString& purpose, int status)
+    void updateAddressBook(interfaces::Wallet& wallet, const QString& address, const QString& label, bool isMine, const QString& purpose, int status)
     {
         std::string address2 = address.toStdString();
         int index = 0;
         for (auto& rec : cachedWallet) {
             if (rec.strAddress == address2) {
-                rec.status.needsUpdate = true;
+                rec.updateLabel(wallet);
                 Q_EMIT parent->dataChanged(parent->index(index, TransactionTableModel::ToAddress), parent->index(index, TransactionTableModel::ToAddress));
             }
             index++;
@@ -266,7 +265,7 @@ void TransactionTableModel::updateTransaction(const QString &hash, int status, b
 void TransactionTableModel::updateAddressBook(const QString& address, const QString& label, bool isMine,
                                               const QString& purpose, int status)
 {
-    priv->updateAddressBook(address, label, isMine, purpose, status);
+    priv->updateAddressBook(walletModel->wallet(), address, label, isMine, purpose, status);
 }
 
 void TransactionTableModel::updateConfirmations()
@@ -431,7 +430,7 @@ QString TransactionTableModel::formatTxToAddress(const TransactionRecord *wtx, b
     case TransactionRecord::SendToAddress:
     case TransactionRecord::Generated:
     case TransactionRecord::PrivateSend:
-        return formatAddressLabel(wtx->strAddress, wtx->status.label, tooltip) + watchAddress;
+        return formatAddressLabel(wtx->strAddress, wtx->label, tooltip) + watchAddress;
     case TransactionRecord::SendToOther:
         return QString::fromStdString(wtx->strAddress) + watchAddress;
     case TransactionRecord::SendToSelf:
@@ -451,9 +450,9 @@ QVariant TransactionTableModel::addressColor(const TransactionRecord *wtx) const
     case TransactionRecord::PrivateSend:
     case TransactionRecord::RecvWithPrivateSend:
         {
-        QString label = walletModel->getAddressTableModel()->labelForDestination(wtx->txDest);
-        if(label.isEmpty())
+        if (wtx->label.isEmpty()) {
             return GUIUtil::getThemedQColor(GUIUtil::ThemedColor::BAREADDRESS);
+        }
         } break;
     case TransactionRecord::SendToSelf:
     case TransactionRecord::PrivateSendCreateDenominations:
@@ -645,7 +644,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case AddressRole:
         return QString::fromStdString(rec->strAddress);
     case LabelRole:
-        return rec->status.label;
+        return rec->label;
     case AmountRole:
         return qint64(rec->credit + rec->debit);
     case TxHashRole:
@@ -655,7 +654,7 @@ QVariant TransactionTableModel::data(const QModelIndex &index, int role) const
     case TxPlainTextRole:
         {
             QString details;
-            QString txLabel = rec->status.label;
+            QString txLabel = rec->label;
 
             details.append(formatTxDate(rec));
             details.append(" ");

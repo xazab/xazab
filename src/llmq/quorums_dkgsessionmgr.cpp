@@ -18,6 +18,7 @@ CDKGSessionManager* quorumDKGSessionManager;
 
 static const std::string DB_VVEC = "qdkg_V";
 static const std::string DB_SKCONTRIB = "qdkg_S";
+static const std::string DB_ENC_CONTRIB = "qdkg_E";
 
 CDKGSessionManager::CDKGSessionManager(CDBWrapper& _llmqDb, CBLSWorker& _blsWorker) :
     llmqDb(_llmqDb),
@@ -48,8 +49,6 @@ void CDKGSessionManager::StopThreads()
 
 void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fInitialDownload)
 {
-    const auto& consensus = Params().GetConsensus();
-
     CleanupCache();
 
     if (fInitialDownload)
@@ -64,7 +63,7 @@ void CDKGSessionManager::UpdatedBlockTip(const CBlockIndex* pindexNew, bool fIni
     }
 }
 
-void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman)
+void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv)
 {
     if (!IsQuorumDKGEnabled())
         return;
@@ -96,7 +95,7 @@ void CDKGSessionManager::ProcessMessage(CNode* pfrom, const std::string& strComm
         return;
     }
 
-    dkgSessionHandlers.at(llmqType).ProcessMessage(pfrom, strCommand, vRecv, connman);
+    dkgSessionHandlers.at(llmqType).ProcessMessage(pfrom, strCommand, vRecv);
 }
 
 bool CDKGSessionManager::AlreadyHave(const CInv& inv) const
@@ -206,8 +205,14 @@ void CDKGSessionManager::WriteVerifiedSkContribution(Consensus::LLMQType llmqTyp
     llmqDb.Write(std::make_tuple(DB_SKCONTRIB, llmqType, pindexQuorum->GetBlockHash(), proTxHash), skContribution);
 }
 
+void CDKGSessionManager::WriteEncryptedContributions(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& proTxHash, const CBLSIESMultiRecipientObjects<CBLSSecretKey>& contributions)
+{
+    llmqDb.Write(std::make_tuple(DB_ENC_CONTRIB, llmqType, pindexQuorum->GetBlockHash(), proTxHash), contributions);
+}
+
 bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const std::vector<bool>& validMembers, std::vector<uint16_t>& memberIndexesRet, std::vector<BLSVerificationVectorPtr>& vvecsRet, BLSSecretKeyVector& skContributionsRet)
 {
+    LOCK(contributionsCacheCs);
     auto members = CLLMQUtils::GetAllQuorumMembers(llmqType, pindexQuorum);
 
     memberIndexesRet.clear();
@@ -218,44 +223,55 @@ bool CDKGSessionManager::GetVerifiedContributions(Consensus::LLMQType llmqType, 
     skContributionsRet.reserve(members.size());
     for (size_t i = 0; i < members.size(); i++) {
         if (validMembers[i]) {
-            BLSVerificationVectorPtr vvec;
-            CBLSSecretKey skContribution;
-            if (!GetVerifiedContribution(llmqType, pindexQuorum, members[i]->proTxHash, vvec, skContribution)) {
-                return false;
+            const uint256& proTxHash = members[i]->proTxHash;
+            ContributionsCacheKey cacheKey = {llmqType, pindexQuorum->GetBlockHash(), proTxHash};
+            auto it = contributionsCache.find(cacheKey);
+            if (it == contributionsCache.end()) {
+                BLSVerificationVectorPtr vvecPtr = std::make_shared<BLSVerificationVector>();
+                CBLSSecretKey skContribution;
+                if (!llmqDb.Read(std::make_tuple(DB_VVEC, llmqType, pindexQuorum->GetBlockHash(), proTxHash), *vvecPtr)) {
+                    return false;
+                }
+                llmqDb.Read(std::make_tuple(DB_SKCONTRIB, llmqType, pindexQuorum->GetBlockHash(), proTxHash), skContribution);
+
+                it = contributionsCache.emplace(cacheKey, ContributionsCacheEntry{GetTimeMillis(), vvecPtr, skContribution}).first;
             }
 
             memberIndexesRet.emplace_back(i);
-            vvecsRet.emplace_back(vvec);
-            skContributionsRet.emplace_back(skContribution);
+            vvecsRet.emplace_back(it->second.vvec);
+            skContributionsRet.emplace_back(it->second.skContribution);
         }
     }
     return true;
 }
 
-bool CDKGSessionManager::GetVerifiedContribution(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& proTxHash, BLSVerificationVectorPtr& vvecRet, CBLSSecretKey& skContributionRet)
+bool CDKGSessionManager::GetEncryptedContributions(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const std::vector<bool>& validMembers, const uint256& nProTxHash, std::vector<CBLSIESEncryptedObject<CBLSSecretKey>>& vecRet)
 {
-    LOCK(contributionsCacheCs);
-    ContributionsCacheKey cacheKey = {llmqType, pindexQuorum->GetBlockHash(), proTxHash};
-    auto it = contributionsCache.find(cacheKey);
-    if (it != contributionsCache.end()) {
-        vvecRet = it->second.vvec;
-        skContributionRet = it->second.skContribution;
-        return true;
+    auto members = CLLMQUtils::GetAllQuorumMembers(llmqType, pindexQuorum);
+
+    vecRet.clear();
+    vecRet.reserve(members.size());
+
+    size_t nRequestedMemberIdx{std::numeric_limits<size_t>::max()};
+    for (size_t i = 0; i < members.size(); i++) {
+        if (members[i]->proTxHash == nProTxHash) {
+            nRequestedMemberIdx = i;
+            break;
+        }
+    }
+    if (nRequestedMemberIdx == std::numeric_limits<size_t>::max()) {
+        return false;
     }
 
-    BLSVerificationVector vvec;
-    BLSVerificationVectorPtr vvecPtr;
-    CBLSSecretKey skContribution;
-    if (llmqDb.Read(std::make_tuple(DB_VVEC, llmqType, pindexQuorum->GetBlockHash(), proTxHash), vvec)) {
-        vvecPtr = std::make_shared<BLSVerificationVector>(std::move(vvec));
+    for (size_t i = 0; i < members.size(); i++) {
+        if (validMembers[i]) {
+            CBLSIESMultiRecipientObjects<CBLSSecretKey> encryptedContributions;
+            if (!llmqDb.Read(std::make_tuple(DB_ENC_CONTRIB, llmqType, pindexQuorum->GetBlockHash(), members[i]->proTxHash), encryptedContributions)) {
+                return false;
+            }
+            vecRet.emplace_back(encryptedContributions.Get(nRequestedMemberIdx));
+        }
     }
-    llmqDb.Read(std::make_tuple(DB_SKCONTRIB, llmqType, pindexQuorum->GetBlockHash(), proTxHash), skContribution);
-
-    it = contributionsCache.emplace(cacheKey, ContributionsCacheEntry{GetTimeMillis(), vvecPtr, skContribution}).first;
-
-    vvecRet = it->second.vvec;
-    skContributionRet = it->second.skContribution;
-
     return true;
 }
 

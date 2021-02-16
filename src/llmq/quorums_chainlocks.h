@@ -91,7 +91,7 @@ public:
     bool GetChainLockByHash(const uint256& hash, CChainLockSig& ret);
     CChainLockSig GetBestChainLock();
 
-    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv, CConnman& connman);
+    void ProcessMessage(CNode* pfrom, const std::string& strCommand, CDataStream& vRecv);
     void ProcessNewChainLock(NodeId from, const CChainLockSig& clsig, const uint256& hash);
     void AcceptedBlockHeader(const CBlockIndex* pindexNew);
     void UpdatedBlockTip(const CBlockIndex* pindexNew);
@@ -112,8 +112,6 @@ private:
     // these require locks to be held already
     bool InternalHasChainLock(int nHeight, const uint256& blockHash);
     bool InternalHasConflictingChainLock(int nHeight, const uint256& blockHash);
-
-    static void DoInvalidateBlock(const CBlockIndex* pindex);
 
     BlockTxs::mapped_type GetBlockTxs(const uint256& blockHash);
 

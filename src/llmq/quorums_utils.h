@@ -22,6 +22,8 @@ namespace llmq
 extern CCriticalSection cs_llmq_vbc;
 extern VersionBitsCache llmq_versionbitscache;
 
+static const bool DEFAULT_ENABLE_QUORUM_DATA_RECOVERY = true;
+
 class CLLMQUtils
 {
 public:
@@ -39,6 +41,7 @@ public:
     }
 
     static bool IsAllMembersConnectedEnabled(Consensus::LLMQType llmqType);
+    static bool IsQuorumPoseEnabled(Consensus::LLMQType llmqType);
     static uint256 DeterministicOutboundConnection(const uint256& proTxHash1, const uint256& proTxHash2);
     static std::set<uint256> GetQuorumConnections(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& forMember, bool onlyOutbound);
     static std::set<uint256> GetQuorumRelayMembers(Consensus::LLMQType llmqType, const CBlockIndex* pindexQuorum, const uint256& forMember, bool onlyOutbound);
@@ -50,7 +53,12 @@ public:
     static bool IsQuorumActive(Consensus::LLMQType llmqType, const uint256& quorumHash);
     static bool IsQuorumTypeEnabled(Consensus::LLMQType llmqType, const CBlockIndex* pindex);
     static std::vector<Consensus::LLMQType> GetEnabledQuorumTypes(const CBlockIndex* pindex);
-    static Consensus::LLMQParams GetLLMQParams(const Consensus::LLMQType llmqType);
+
+    /// Returns the state of `-llmq-data-recovery`
+    static bool QuorumDataRecoveryEnabled();
+
+    /// Returns the values given by `-llmq-qvvec-sync`
+    static std::set<Consensus::LLMQType> GetEnabledQuorumVvecSyncTypes();
 
     template<typename NodesContainer, typename Continue, typename Callback>
     static void IterateNodesRandom(NodesContainer& nodeStates, Continue&& cont, Callback&& callback, FastRandomContext& rnd)
@@ -63,7 +71,7 @@ public:
         if (rndNodes.empty()) {
             return;
         }
-        std::random_shuffle(rndNodes.begin(), rndNodes.end(), rnd);
+        Shuffle(rndNodes.begin(), rndNodes.end(), rnd);
 
         size_t idx = 0;
         while (!rndNodes.empty() && cont()) {
@@ -89,7 +97,17 @@ public:
         }
         return HexStr(vBytes);
     }
+    template <typename CacheType>
+    static void InitQuorumsCache(CacheType& cache)
+    {
+        for (auto& llmq : Params().GetConsensus().llmqs) {
+            cache.emplace(std::piecewise_construct, std::forward_as_tuple(llmq.first),
+                                                    std::forward_as_tuple(llmq.second.signingActiveQuorumCount + 1));
+        }
+    }
 };
+
+const Consensus::LLMQParams& GetLLMQParams(const Consensus::LLMQType llmqType);
 
 } // namespace llmq
 
