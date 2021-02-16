@@ -106,35 +106,30 @@ Period 19: 60%    X 4 =  2.40  XAZAB
 ## Download The Xazab Wallet
 
 ```shell
-fe4cbb56bd3732a1532a2bfab8145fc216a4d824b866221c2d743f40a26b2c8d  xazabcore-0.16.0-win64-setup.exe
-23940180065160477cfe88504aedfa4d3531b70faa50bce0c09cf75ba1d7f669  xazabcore-0.16.1-win64.zip
-f6dea5b6207057eeb17ef2cc2c841d8ed04fd8f3512fadcab19eefe63bd77e60  xazabcore-0.16.0.1-x86_64-pc-linux-gnu.tar.gz
-aa25dfe3128987a87ecac0d21accd5ba41b17029e5faab97c9de8d98bfd2719b  xazabcore-0.16.0.1-x86_64-linux-gnu.tar.gz
-a1d81e8a9dd38701b4cf7aa3a44e9e5b227382fbb7cb1a5a9edb96d18661d10c  xazabcore-0.16.1-i686-pc-linux-gnu.tar.gz
-4f1e3b2d5b51fd63fb97baa575162f0d4fe5e096b8b08b585c8bd141e0d4941a  xazabcore-0.16.1-win32-setup.exe
-e93f16cc5b3a1fce13e889ae9c8af1e5e18233dfd81bcd6b638faa4b6d801a08  xazabcore-0.16.0.1-win32.zip
-ad3efcd29dea9390d22950495a83a49aad63cebd300697df02a1b1cdc7374a8e  xazabcore-0.16.0.1-arm-linux-gnueabihf.tar.gz
-757be5b96e714009e3448cdb6e446e3425fbac273056b944e1372fe41099d12c  xazabcore-0.16.0.1-aarch64-linux-gnu.tar.gz
-ffa22236a0dbe30e601acdc95b36f1353dbaa6c9dd095b9ef7900ad681d21644  xazabcore-0.16.0.1-osx.dmg
-dbcc49efc095f4461882acf8dc78dd0e20b27933eb32c1b875fabb64000364fc  xazabcore-0.16.0.1-osx64.tar.gz
+e6fe1ef39be62d976d3d03bf2b7989ecf3ed3317df9d903879d247a57b189235 xazabcore-0.17.0.1-win64.zip
+19d2078b1578293197d3a29006a6f838508f3764d33604d82251ce858b100840 xazabcore-0.17.0.1-osx.dmg
+b81eaf197e5649baadb6afda95abedc1b2a3f33ffd2f5119f9b126cb19e20829 xazabcore-0.17.0.1-osx64.tar.gz
+06a5dbfeeb6dafbb2236d91559d5b4f8de61a1f9657a312e81dfb8e10133cadb xazabcore-0.17.0.1-x86_64-linux-gnu.tar.gz
+8a23c7fe68fa04fc0a825ca5d3203c7dd77b27e3055afac3d060a068fc58024b  xazabcore-0.17.0.1-aarch64-linux-gnu.tar.gz
+74030f884dc3ca72851671b740be56961f1009bea322116d1df7995238f916dc  xazabcore-0.17.0-win64-setup.exe
+6b825789c050d7eb9149ff7ec47c2bd77c697bd8dd06c128882db2f75c6dc4ec  xazabcore-0.17.0.1-i686-pc-linux-gnu.tar.gz
+47283ec48c9a80f2ffc00fd67dab5709a8e6d6b477a7b7bb582e37184ed0cd91  xazabcore-0.17.0.1-arm-linux-gnueabihf.tar.gz
+1a095d0c915174ab188dbddcf2a529734ac37d9092ad2aea38ba561895fe44d8  xazabcore-0.17.0-win32-setup.exe
+8d7ba2ba5fdd9277ccf59deedf219e1f72ebaf9819715cfbab5e3a32fe18b9cb  xazabcore-0.17.0.1-win32.zip
+
 ```
+
+[64-bit windows Installer](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0-win64-setup.exe)
+[64-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-win64.zip)
+[32-bit windows binaries Installer](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17-win32-setup.exe)
+[32-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-win32.zip)
+[64-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-x86_64-linux-gnu.tar.gz)
+[32-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.1-i686-pc-linux-gnu.tar.gz)
+[Armv7 binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-arm-linux-gnueabihf.tar.gz)
+[Armv8 binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-aarch64-linux-gnu.tar.gz)
 [Android Mobile Wallet](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazab-wallet-prod-release.apk)
 
-[64-bit windows Installer](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0-win64-setup.exe)
 
-[64-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.1-win64.zip)
-
-[32-bit windows binaries Installer](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.1-win32-setup.exe)
-
-[32-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-win32.zip)
-
-[64-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-x86_64-linux-gnu.tar.gz)
-
-[32-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.1-i686-pc-linux-gnu.tar.gz)
-
-[Armv7 binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-arm-linux-gnueabihf.tar.gz)
-
-[Armv8 binaries](https://github.com/xazab/xazab/releases/download/0.16.0.1/xazabcore-0.16.0.1-aarch64-linux-gnu.tar.gz)
 
 
 ## Links
