@@ -184,7 +184,7 @@ To set up a xazab masternode you need 1000 XAZAB, VPS and s Xazab wallet.
 getnewaddress
 ```
 
-From the address generated above send 1000 XAZAB to the address and wait for 15 confirmation
+From the address generated above send `15,000` XAZAB to the address and wait for 15 confirmation
 
 Check the masternode output with this command
 
@@ -340,7 +340,7 @@ Download the xazab wallet with the below command. Copy the below code at once an
 
 ```bash
 cd /tmp/ &&
-wget https://github.com/xazab/xazab/releases/download/v0.16.0.0/xazabcore-0.16.0.1-x86_64-linux-gnu.tar.gz
+wget https://github.com/xazab/xazab/releases/download/v0.17.0.1/xazabcore-0.17.0.1-x86_64-linux-gnu.tar.gz
 
 ```
 
@@ -348,7 +348,7 @@ Install the xazab wallet with the below command
 
 ```bash 
 
-sudo bash -c "cd /opt&& rm -f xazab 2>/dev/null;tar xvf /tmp/xazabcore-0.16.0.1-x86_64-linux-gnu.tar.gz&& ln -s xazabcore-0.16.0 xazab"
+sudo bash -c "cd /opt&& rm -f xazab 2>/dev/null;tar xvf /tmp/xazabcore-0.17.0.1-x86_64-linux-gnu.tar.gz&& ln -s xazabcore-0.17.0.1 xazab"
 
 ```
 
