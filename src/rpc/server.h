@@ -25,6 +25,8 @@ namespace RPCServer
     void OnStopped(std::function<void ()> slot);
 }
 
+class CBlockIndex;
+
 /** Wrapper for UniValue::VType, which includes typeAny:
  * Used to denote don't care type. */
 struct UniValueType {
@@ -33,6 +35,7 @@ struct UniValueType {
     bool typeAny;
     UniValue::VType type;
 };
+
 
 class JSONRPCRequest
 {

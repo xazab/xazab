@@ -2668,7 +2668,7 @@ void static UpdateTip(const CBlockIndex *pindexNew, const CChainParams& chainPar
         for (int i = 0; i < 100 && pindex != nullptr; i++)
         {
             int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus(), pindex->GetAlgo(), true);
-            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0 && !isMultiAlgoVersion(pindex->nVersion)
+            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
                 ++nUpgraded;
             pindex = pindex->pprev;
         }
@@ -3620,7 +3620,7 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
             return state.DoS(100, error("%s : incorrect proof of work (DGW pre-fork) - %f %f %f at %d", __func__, abs(n1-n2), n1, n2, nHeight),
                             REJECT_INVALID, "bad-diffbits");
     } else {
-        if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams), block.GetAlgo())
+        if (block.nBits != GetNextWorkRequired(pindexPrev, &block, consensusParams, block.GetAlgo()))
             return state.DoS(100, false, REJECT_INVALID, "bad-diffbits", false, strprintf("incorrect proof of work at %d", nHeight));
     }
 
