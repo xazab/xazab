@@ -57,6 +57,8 @@ extern int nWalletBackups;
 // Application startup time (used for uptime calculation)
 int64_t GetStartupTime();
 
+extern int miningAlgo;
+
 /** Signals for translation. */
 class CTranslationInterface
 {

@@ -644,6 +644,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-blockmintxfee=<amt>", strprintf(_("Set lowest fee rate (in %s/kB) for transactions to be included in block creation. (default: %s)"), CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)));
     if (showDebug)
         strUsage += HelpMessageOpt("-blockversion=<n>", "Override block version to test forking scenarios");
+    strUsage += HelpMessageOpt("-algo=<algo>", "Mining algorithms: sha256d, scrypt, x11");
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-rest", strprintf(_("Accept public REST requests (default: %u)"), DEFAULT_REST_ENABLE));
@@ -1865,6 +1866,20 @@ bool AppInitMain()
             SetLimited(NET_ONION, false);
         }
     }
+
+    // Algo
+    std::string strAlgo = GetArg("-algo", "scrypt");
+    transform(strAlgo.begin(),strAlgo.end(),strAlgo.begin(),::tolower);
+    if (strAlgo == "sha" || strAlgo == "sha256" || strAlgo == "sha256d")
+        miningAlgo = ALGO_SHA256D;
+    else if (strAlgo == "scrypt")
+        miningAlgo = ALGO_SCRYPT;
+    else if (strAlgo == "x11")
+        miningAlgo = ALGO_X11;
+    else
+        miningAlgo = ALGO_SCRYPT;
+
+    LogPrintf("Selected Algo: %s\n", strAlgo);
 
     // see Step 2: parameter interactions for more information about these
     fListen = gArgs.GetBoolArg("-listen", DEFAULT_LISTEN);

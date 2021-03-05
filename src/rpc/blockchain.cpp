@@ -18,6 +18,7 @@
 #include <policy/feerate.h>
 #include <policy/policy.h>
 #include <primitives/transaction.h>
+#include <pow.h>
 #include <rpc/server.h>
 #include <streams.h>
 #include <sync.h>
@@ -58,18 +59,29 @@ static CUpdatedBlock latestblock;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 
-/* Calculate the difficulty for a given block index.
- */
-double GetDifficulty(const CBlockIndex* blockindex)
+double GetDifficulty(const CChain& chain, const CBlockIndex* blockindex, int algo)
 {
+    unsigned int nBits;
+    unsigned int powLimit = UintToArith256(Params().GetConsensus().powLimit).GetCompact();
     if (blockindex == nullptr)
     {
-        return 1.0;
+        if (chain.Tip() == nullptr)
+            nBits = powLimit;
+        else
+        {
+            blockindex = GetLastBlockIndexForAlgo(chain.Tip(), Params().GetConsensus(), algo);
+            if (blockindex == nullptr)
+                nBits = powLimit;
+            else
+                nBits = blockindex->nBits;
+        }
     }
+    else
+        nBits = blockindex->nBits;
 
     int nShift = (blockindex->nBits >> 24) & 0xff;
     double dDiff =
-        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
+        (double)0x0000ffff / (double)(nBits & 0x00ffffff);
 
     while (nShift < 29)
     {
@@ -83,6 +95,11 @@ double GetDifficulty(const CBlockIndex* blockindex)
     }
 
     return dDiff;
+}
+
+double GetDifficulty(const CBlockIndex* blockindex, int algo)
+{
+    return GetDifficulty(chainActive, blockindex, algo);
 }
 
 UniValue blockheaderToJSON(const CBlockIndex* blockindex)
@@ -103,7 +120,7 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
     result.pushKV("nonce", (uint64_t)blockindex->nNonce);
     result.pushKV("bits", strprintf("%08x", blockindex->nBits));
-    result.pushKV("difficulty", GetDifficulty(blockindex));
+    result.pushKV("difficulty", GetDifficulty(blockindex, miningAlgo));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
@@ -132,6 +149,10 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.pushKV("height", blockindex->nHeight);
     result.pushKV("version", block.nVersion);
     result.pushKV("versionHex", strprintf("%08x", block.nVersion));
+    int algo = block.GetAlgo();
+    result.pushKV("pow_algo_id", algo);
+    result.pushKV("pow_algo", GetAlgoName(algo));
+    result.pushKV("pow_hash", block.GetPoWAlgoHash().GetHex());
     result.pushKV("merkleroot", block.hashMerkleRoot.GetHex());
     bool chainLock = llmq::chainLocksHandler->HasChainLock(blockindex->nHeight, blockindex->GetBlockHash());
     UniValue txs(UniValue::VARR);
@@ -162,7 +183,7 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.pushKV("mediantime", (int64_t)blockindex->GetMedianTimePast());
     result.pushKV("nonce", (uint64_t)block.nNonce);
     result.pushKV("bits", strprintf("%08x", block.nBits));
-    result.pushKV("difficulty", GetDifficulty(blockindex));
+    result.pushKV("difficulty", GetDifficulty(blockindex, miningAlgo));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
@@ -404,7 +425,7 @@ UniValue getdifficulty(const JSONRPCRequest& request)
         );
 
     LOCK(cs_main);
-    return GetDifficulty(chainActive.Tip());
+    return GetDifficulty(chainActive.Tip(), miningAlgo);
 }
 
 std::string EntryDescriptionString()
@@ -1428,7 +1449,7 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     obj.pushKV("blocks",                (int)chainActive.Height());
     obj.pushKV("headers",               pindexBestHeader ? pindexBestHeader->nHeight : -1);
     obj.pushKV("bestblockhash",         chainActive.Tip()->GetBlockHash().GetHex());
-    obj.pushKV("difficulty",            (double)GetDifficulty(chainActive.Tip()));
+    obj.pushKV("difficulty",            (double)GetDifficulty(chainActive.Tip(), miningAlgo));
     obj.pushKV("mediantime",            (int64_t)chainActive.Tip()->GetMedianTimePast());
     obj.pushKV("verificationprogress",  GuessVerificationProgress(Params().TxData(), chainActive.Tip()));
     obj.pushKV("initialblockdownload",  IsInitialBlockDownload());
@@ -1451,7 +1472,6 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
             obj.pushKV("prune_target_size",  nPruneTarget);
         }
     }
-
     const Consensus::Params& consensusParams = Params().GetConsensus();
     CBlockIndex* tip = chainActive.Tip();
     UniValue softforks(UniValue::VARR);
@@ -1460,12 +1480,17 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     softforks.push_back(SoftForkDesc("bip34", 2, tip, consensusParams));
     softforks.push_back(SoftForkDesc("bip66", 3, tip, consensusParams));
     softforks.push_back(SoftForkDesc("bip65", 4, tip, consensusParams));
+    UniValue difficulties(UniValue::VOBJ);
+    difficulties.push_back(Pair("sha256d", (double)GetDifficulty(NULL, ALGO_SHA256D)));
+    difficulties.push_back(Pair("scrypt", (double)GetDifficulty(NULL, ALGO_SCRYPT)));
+    difficulties.push_back(Pair("x11", (double)GetDifficulty(NULL, ALGO_X11)));
+  
     for (int pos = Consensus::DEPLOYMENT_CSV; pos != Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++pos) {
         BIP9SoftForkDescPushBack(bip9_softforks, consensusParams, static_cast<Consensus::DeploymentPos>(pos));
     }
     obj.pushKV("softforks",             softforks);
     obj.pushKV("bip9_softforks", bip9_softforks);
-
+    obj.pushKV("difficulties",             difficulties);
     obj.pushKV("warnings", GetWarnings("statusbar"));
     return obj;
 }
@@ -1580,7 +1605,7 @@ UniValue getchaintips(const JSONRPCRequest& request)
         UniValue obj(UniValue::VOBJ);
         obj.pushKV("height", block->nHeight);
         obj.pushKV("hash", block->phashBlock->GetHex());
-        obj.pushKV("difficulty", GetDifficulty(block));
+        obj.pushKV("difficulty", GetDifficulty(block, block->GetAlgo()));
         obj.pushKV("chainwork", block->nChainWork.GetHex());
         obj.pushKV("branchlen", branchLen);
         obj.pushKV("forkpoint", pindexFork->phashBlock->GetHex());

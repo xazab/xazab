@@ -104,6 +104,8 @@ const char * const BITCOIN_PID_FILENAME = "xazabd.pid";
 
 ArgsManager gArgs;
 
+
+int miningAlgo = 0;
 CTranslationInterface translationInterface;
 
 /** Init OpenSSL library multithreading support */
