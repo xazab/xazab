@@ -66,13 +66,13 @@ double GetDifficulty(const CChain& chain, const CBlockIndex* blockindex, int alg
     if (blockindex == nullptr)
     {
         if (chain.Tip() == nullptr){
-            nBits = powLimit;
+     
 	   return 1.0;}
         else
         {
             blockindex = GetLastBlockIndexForAlgo(chain.Tip(), Params().GetConsensus(), algo);
             if (blockindex == nullptr){
-                nBits = powLimit;
+        
 	         return 1.0;}
             else
                 nBits = blockindex->nBits;
@@ -1489,6 +1489,8 @@ UniValue getblockchaininfo(const JSONRPCRequest& request)
     difficulties.push_back(Pair("sha256d", (double)GetDifficulty(NULL, ALGO_SHA256D)));
     difficulties.push_back(Pair("scrypt", (double)GetDifficulty(NULL, ALGO_SCRYPT)));
     difficulties.push_back(Pair("x11", (double)GetDifficulty(NULL, ALGO_X11)));
+    difficulties.push_back(Pair("yespower", (double)GetDifficulty(NULL, ALGO_YESPOWER)));
+    difficulties.push_back(Pair("lyra2", (double)GetDifficulty(NULL, ALGO_LYRA2)));
   
     for (int pos = Consensus::DEPLOYMENT_CSV; pos != Consensus::MAX_VERSION_BITS_DEPLOYMENTS; ++pos) {
         BIP9SoftForkDescPushBack(bip9_softforks, consensusParams, static_cast<Consensus::DeploymentPos>(pos));

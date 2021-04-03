@@ -1089,7 +1089,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetPoWAlgoHash(), block.nBits, consensusParams))
+    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -1941,6 +1941,18 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
         break;
         case ALGO_X11:
         nVersion |= BLOCK_VERSION_X11;
+        break;
+	case ALGO_YESPOWER:
+        if (pindexPrev->nHeight < params.v2DiffChangeHeight)
+            nVersion |= BLOCK_VERSION_X11;
+        else
+            nVersion |= BLOCK_VERSION_YESPOWER;
+        break;
+        case ALGO_LYRA2:
+        if (pindexPrev->nHeight < params.AlgoChangeHeight)
+            nVersion |= BLOCK_VERSION_X11;
+        else
+            nVersion |= BLOCK_VERSION_LYRA2;
         break;
         default:
         break;
@@ -3514,7 +3526,7 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWAlgoHash(), block.nBits, consensusParams))
+    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     // Check DevNet
@@ -3654,6 +3666,10 @@ static bool ContextualCheckBlockHeader(const CBlockHeader& block, CValidationSta
     // check of algo 3 is active
     if (block.GetAlgo() == 3 && nHeight < consensusParams.v2DiffChangeHeight)
         return state.Invalid(false, REJECT_INVALID, "invalid-algo", "this algorithm is not active");
+
+    // Check if algo 4 is active
+    if (block.GetAlgo() == 4 && nHeight < consensusParams.AlgoChangeHeight)
+        return state.Invalid(false, REJECT_INVALID, "invalid-algo", "LYRA2 algorithm is not active");
 
     return true;
 }

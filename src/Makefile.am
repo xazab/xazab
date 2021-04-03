@@ -425,6 +425,12 @@ crypto_libxazab_crypto_base_a_SOURCES = \
   crypto/ripemd160.cpp \
   crypto/scrypt.cpp \
   crypto/scrypt.h \
+  crypto/algos/yespower/yespower-sha256.c \
+  crypto/algos/yespower/yespower-opt.c \
+  crypto/algos/yespower/yespower.c \
+  crypto/algos/Lyra2Z/Lyra2.c \
+  crypto/algos/Lyra2Z/Lyra2Z.c \
+  crypto/algos/Lyra2Z/Sponge.c \
   crypto/aes_helper.c \
   crypto/ripemd160.h \
   crypto/sha1.cpp \

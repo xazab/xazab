@@ -1879,8 +1879,12 @@ bool AppInitMain()
         miningAlgo = ALGO_SCRYPT;
     else if (strAlgo == "x11")
         miningAlgo = ALGO_X11;
+    else if (strAlgo == "yespower")
+        miningAlgo = ALGO_YESPOWER;
+    else if (strAlgo == "lyra2" || strAlgo == "lyra2z330")
+        miningAlgo = ALGO_LYRA2;
     else
-        miningAlgo = ALGO_SCRYPT;
+        miningAlgo = ALGO_X11;
 
     LogPrintf("Selected Algo: %s\n", strAlgo);
 

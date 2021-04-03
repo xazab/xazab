@@ -231,6 +231,8 @@ UniValue getmininginfo(const JSONRPCRequest& request)
     obj.pushKV("difficulty_sha256d", (double)GetDifficulty(chainActive.Tip(), ALGO_SHA256D));
     obj.pushKV("difficulty_scrypt",  (double)GetDifficulty(chainActive.Tip(), ALGO_SCRYPT));
     obj.pushKV("difficulty_x11",     (double)GetDifficulty(chainActive.Tip(), ALGO_X11));
+    obj.pushKV("difficulty_yespower",(double)GetDifficulty(nullptr, ALGO_YESPOWER));
+    obj.pushKV("difficulty_lyra2",   (double)GetDifficulty(nullptr, ALGO_LYRA2));
     obj.pushKV("networkhashps",    getnetworkhashps(request));
     obj.pushKV("pooledtx",         (uint64_t)mempool.size());
     obj.pushKV("chain",            Params().NetworkIDString());
@@ -299,7 +301,7 @@ std::string gbt_vb_name(const Consensus::DeploymentPos pos) {
 
 UniValue getblocktemplate(const JSONRPCRequest& request)
 {
-    if (request.fHelp || request.params.size() > 1)
+    if (request.fHelp || request.params.size() > 2)
         throw std::runtime_error(
             "getblocktemplate ( TemplateRequest )\n"
             "\nIf the request parameters include a 'mode' key, that is used to explicitly select between the default 'template' request or a 'proposal'.\n"
@@ -467,6 +469,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
             algo = ALGO_SCRYPT;
         else if (strAlgo == "x11")
             algo = ALGO_X11;
+	 else if (strAlgo == "yespower")
+            algo = ALGO_YESPOWER;
+	 else if (strAlgo == "lyra2" || strAlgo == "lyra2z330")
+            algo = ALGO_LYRA2;
     }
 
     if (strMode != "template")
@@ -544,8 +550,10 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
     static CBlockIndex* pindexPrev;
     static int64_t nStart;
     static std::unique_ptr<CBlockTemplate> pblocktemplate;
+    static int lastAlgo;
     if (pindexPrev != chainActive.Tip() ||
-        (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 5))
+        (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 5) ||
+	algo != lastAlgo)
     {
         // Clear pindexPrev so future calls make a new block, despite any failures from here on
         pindexPrev = nullptr;
@@ -554,6 +562,7 @@ UniValue getblocktemplate(const JSONRPCRequest& request)
         nTransactionsUpdatedLast = mempool.GetTransactionsUpdated();
         CBlockIndex* pindexPrevNew = chainActive.Tip();
         nStart = GetTime();
+	lastAlgo = algo;
 
         // Create new block
         CScript scriptDummy = CScript() << OP_TRUE;
