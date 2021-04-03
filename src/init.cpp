@@ -77,9 +77,12 @@
 #endif
 
 #include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/bind.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/function.hpp>
 #include <boost/interprocess/sync/file_lock.hpp>
 #include <boost/thread.hpp>
 #include <openssl/crypto.h>
@@ -1868,7 +1871,7 @@ bool AppInitMain()
     }
 
     // Algo
-    std::string strAlgo = gArgs.GetArg("-algo", "scrypt");
+    std::string strAlgo = gArgs.GetArg("-algo", "x11");
     transform(strAlgo.begin(),strAlgo.end(),strAlgo.begin(),::tolower);
     if (strAlgo == "sha" || strAlgo == "sha256" || strAlgo == "sha256d")
         miningAlgo = ALGO_SHA256D;

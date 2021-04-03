@@ -352,7 +352,30 @@ public:
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
+
+        consensus.multiAlgoTargetSpacing = 90 * 3; // NUM_ALGOS * 90 seconds
+        consensus.multiAlgoTargetSpacingV2 = 90 * 4; // add yespower
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
+        consensus.nAveragingTargetTimespanV2 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV2; // 10 * NUM_ALGOS * 90
+        consensus.nMaxAdjustDown = 16; // 16% adjustment down
+        consensus.nMaxAdjustUp = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
+        consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
+        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
+        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
+        consensus.nMinActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nMinActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.v2DiffChangeHeight = 222500;
+	consensus.v2DiffChangeHeight = 222600;
+        consensus.v3DiffChangeHeight = 222700;
+        consensus.AlgoChangeHeight = 222800;
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
         consensus.fPowAllowMinDifficultyBlocks = false;
+
+	consensus.fPowAllowMinDifficultyBlocks = false;
         consensus.fPowNoRetargeting = false;
         consensus.nPowKGWHeight = 5;
         consensus.nPowDGWHeight = 6;

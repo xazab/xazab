@@ -4,7 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <primitives/block.h>
-
+#include <arith_uint256.h>
 #include <hash.h>
 #include <streams.h>
 #include <tinyformat.h>
@@ -13,6 +13,14 @@
 #include <crypto/scrypt.h>
 
 uint256 CBlockHeader::GetHash() const
+{
+    std::vector<unsigned char> vch(80);
+    CVectorWriter ss(SER_NETWORK, PROTOCOL_VERSION, vch, 0);
+    ss << *this;
+    return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
+}
+
+uint256 CBlockHeader::GetSha256Hash() const
 {
     return SerializeHash(*this);
 }
@@ -27,21 +35,18 @@ int CBlockHeader::GetAlgo() const
             return ALGO_SHA256D;
         case BLOCK_VERSION_X11:
             return ALGO_X11;
-
     }
-    return ALGO_SCRYPT;
+    return ALGO_UNKNOWN;
 }
 
 uint256 CBlockHeader::GetPoWAlgoHash() const
 {
-    std::vector<unsigned char> vch(80);
-    CVectorWriter ss(SER_NETWORK, PROTOCOL_VERSION, vch, 0);
-    ss << *this;
-
     switch (GetAlgo())
     {
         case ALGO_SHA256D:
-            return GetHash();
+        {
+            return GetSha256Hash();
+        }
         case ALGO_SCRYPT:
         {
             uint256 thash;
@@ -49,7 +54,11 @@ uint256 CBlockHeader::GetPoWAlgoHash() const
             return thash;
         }
         case ALGO_X11:
-            return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
+        {
+            return GetHash();
+        }
+        case ALGO_UNKNOWN:
+            return ArithToUint256(~arith_uint256(0));
     }
     return GetHash();
 }

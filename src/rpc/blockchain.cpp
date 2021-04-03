@@ -65,13 +65,15 @@ double GetDifficulty(const CChain& chain, const CBlockIndex* blockindex, int alg
     unsigned int powLimit = UintToArith256(Params().GetConsensus().powLimit).GetCompact();
     if (blockindex == nullptr)
     {
-        if (chain.Tip() == nullptr)
+        if (chain.Tip() == nullptr){
             nBits = powLimit;
+	   return 1.0;}
         else
         {
             blockindex = GetLastBlockIndexForAlgo(chain.Tip(), Params().GetConsensus(), algo);
-            if (blockindex == nullptr)
+            if (blockindex == nullptr){
                 nBits = powLimit;
+	         return 1.0;}
             else
                 nBits = blockindex->nBits;
         }
@@ -81,7 +83,7 @@ double GetDifficulty(const CChain& chain, const CBlockIndex* blockindex, int alg
 
     int nShift = (blockindex->nBits >> 24) & 0xff;
     double dDiff =
-        (double)0x0000ffff / (double)(nBits & 0x00ffffff);
+        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
 
     while (nShift < 29)
     {
@@ -122,6 +124,9 @@ UniValue blockheaderToJSON(const CBlockIndex* blockindex)
     result.pushKV("bits", strprintf("%08x", blockindex->nBits));
     result.pushKV("difficulty", GetDifficulty(blockindex, miningAlgo));
     result.pushKV("chainwork", blockindex->nChainWork.GetHex());
+    int algo = blockindex->GetAlgo();
+    result.pushKV("pow_algo_id", algo);
+    result.pushKV("pow_algo", GetAlgoName(algo));
     result.pushKV("nTx", (uint64_t)blockindex->nTx);
 
     if (blockindex->pprev)
@@ -425,7 +430,7 @@ UniValue getdifficulty(const JSONRPCRequest& request)
         );
 
     LOCK(cs_main);
-    return GetDifficulty(chainActive.Tip(), miningAlgo);
+    return GetDifficulty(nullptr, miningAlgo);
 }
 
 std::string EntryDescriptionString()

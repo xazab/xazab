@@ -1979,7 +1979,7 @@ public:
     {
         return ((pindex->nVersion & VERSIONBITS_TOP_MASK) == VERSIONBITS_TOP_BITS) &&
                ((pindex->nVersion >> bit) & 1) != 0 &&
-               ((ComputeBlockVersion(pindex->pprev, params, pindex->GetAlgo(), true) >> bit) & 1) == 0;
+               ((ComputeBlockVersion(pindex->pprev, params, pindex->GetAlgo()) >> bit) & 1) == 0;
     }
 };
 
@@ -2668,7 +2668,7 @@ void static UpdateTip(const CBlockIndex *pindexNew, const CChainParams& chainPar
         // Check the version of the last 100 blocks to see if we need to upgrade:
         for (int i = 0; i < 100 && pindex != nullptr; i++)
         {
-            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus(), pindex->GetAlgo());
+            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus(), pindex->GetAlgo(), true);
             if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
                 ++nUpgraded;
             pindex = pindex->pprev;
@@ -2682,9 +2682,9 @@ void static UpdateTip(const CBlockIndex *pindexNew, const CChainParams& chainPar
             DoWarning(strWarning);
         }
     }
-    std::string strMessage = strprintf("%s: new best=%s height=%d version=0x%08x algo=%d (%s) log2_work=%.8f tx=%lu date='%s' progress=%f cache=%.1fMiB(%utxo)", __func__,
+    std::string strMessage = strprintf("%s: new best=%s height=%d version=0x%08x  log2_work=%.8f tx=%lu date='%s' progress=%f cache=%.1fMiB(%utxo)", __func__,
       pindexNew->GetBlockHash().ToString(), pindexNew->nHeight, pindexNew->nVersion,
-      pindexNew->GetAlgo(), GetAlgoName(pindexNew->GetAlgo()),
+  //    pindexNew->GetAlgo(), GetAlgoName(pindexNew->GetAlgo()),
       log(pindexNew->nChainWork.getdouble())/log(2.0), (unsigned long)pindexNew->nChainTx,
       FormatISO8601DateTime(pindexNew->GetBlockTime()),
       GuessVerificationProgress(chainParams.TxData(), pindexNew), pcoinsTip->DynamicMemoryUsage() * (1.0 / (1<<20)), pcoinsTip->GetCacheSize());

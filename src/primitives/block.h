@@ -12,12 +12,15 @@
 
 enum
 {
-    ALGO_SHA256D = 0,
-    ALGO_SCRYPT	 = 1,
-    ALGO_X11     = 2,
+    ALGO_UNKNOWN  = -1,
+    ALGO_SHA256D  = 0,
+    ALGO_SCRYPT	  = 1,
+    ALGO_X11      = 2,
 };
 
 const int NUM_ALGOS = 3;
+const int NUM_ALGOSV2 = 4;
+const int NUM_ALGOSV3 = 5;
 
 enum {
     // primary version
@@ -27,7 +30,7 @@ enum {
     BLOCK_VERSION_ALGO           = (7 << 9),
     BLOCK_VERSION_SCRYPT         = (0 << 9),
     BLOCK_VERSION_SHA256D        = (2 << 9),
-    BLOCK_VERSION_X11            = (4 << 9)
+    BLOCK_VERSION_X11            = (4 << 9),
 };
 
 std::string GetAlgoName(int Algo);
@@ -85,6 +88,8 @@ public:
     int GetAlgo() const;
 
     uint256 GetHash() const;
+
+    uint256 GetSha256Hash() const;
 
     uint256 GetPoWAlgoHash() const;
 
