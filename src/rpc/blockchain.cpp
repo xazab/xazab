@@ -65,15 +65,13 @@ double GetDifficulty(const CChain& chain, const CBlockIndex* blockindex, int alg
     unsigned int powLimit = UintToArith256(Params().GetConsensus().powLimit).GetCompact();
     if (blockindex == nullptr)
     {
-        if (chain.Tip() == nullptr){
-     
-	   return 1.0;}
+        if (chain.Tip() == nullptr)
+            nBits = powLimit;
         else
         {
             blockindex = GetLastBlockIndexForAlgo(chain.Tip(), Params().GetConsensus(), algo);
-            if (blockindex == nullptr){
-        
-	         return 1.0;}
+            if (blockindex == nullptr)
+                nBits = powLimit;
             else
                 nBits = blockindex->nBits;
         }
@@ -81,9 +79,9 @@ double GetDifficulty(const CChain& chain, const CBlockIndex* blockindex, int alg
     else
         nBits = blockindex->nBits;
 
-    int nShift = (blockindex->nBits >> 24) & 0xff;
+    int nShift = (nBits >> 24) & 0xff;
     double dDiff =
-        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
+        (double)0x0000ffff / (double)(nBits & 0x00ffffff);
 
     while (nShift < 29)
     {

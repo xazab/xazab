@@ -165,250 +165,46 @@ unsigned int GetNextWorkRequiredBTC(const CBlockIndex* pindexLast, const CBlockH
    return CalculateNextWorkRequired(pindexLast, pindexFirst->GetBlockTime(), params);
 }
 
-
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock, const Consensus::Params& params, int algo)
 {
-    unsigned int npowWorkLimit = UintToArith256(params.powLimit).GetCompact();
-
-    	// Genesis block
+//    assert(pindexLast != nullptr);
+    // const arith_uint256 bnPowLimit = UintToArith256(params.powLimit);
+const    unsigned int bnPowLimit  = UintToArith256(params.powLimit).GetCompact();
+    assert(pblock != nullptr);
     if (pindexLast == nullptr)
-        return npowWorkLimit;
-
-    // find first block in averaging interval
-    // Go back by what we want to be nAveragingInterval blocks per algo
-    const CBlockIndex* pindexFirst = pindexLast;
-    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, params, algo);
-
+        return bnPowLimit;
+    // this is only active on devnets
+    if (pindexLast->nHeight < params.nMinimumDifficultyBlocks) {
+        return bnPowLimit;
+    }
 
     if (pindexLast->nHeight + 1 < params.nPowKGWHeight) {
         return GetNextWorkRequiredBTC(pindexLast, pblock, params);
     }
 
+    // Note: GetNextWorkRequiredBTC has it's own special difficulty rule,
+    // so we only apply this to post-BTC algos.
+    if (params.fPowAllowMinDifficultyBlocks) {
+        // recent block is more than 2 hours old
+        if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + 2 * 60 * 60) {
+            return bnPowLimit;
+        }
+        // recent block is more than 10 minutes old
+        if (pblock->GetBlockTime() > pindexLast->GetBlockTime() + params.nPowTargetSpacing * 4) {
+            arith_uint256 bnNew = arith_uint256().SetCompact(pindexLast->nBits) * 10;
+            if (bnNew > bnPowLimit) {
+                return bnPowLimit;
+            }
+            return bnNew.GetCompact();
+        }
+    }
+
     if (pindexLast->nHeight + 1 < params.nPowDGWHeight) {
         return KimotoGravityWell(pindexLast, params);
     }
-    else if (pindexLast->nHeight < params.DiffChangeHeight){
-        return DarkGravityWave(pindexLast, params);}
-    else if (pindexLast->nHeight < params.v2DiffChangeHeight){
-        return GetNextWorkRequiredV2(pindexLast, params, algo);}
-     else if (pindexLast->nHeight < params.v3DiffChangeHeight){
-        return GetNextWorkRequiredV3(pindexLast, params, algo);
-    }
-    else{
-        return GetNextWorkRequiredV4(pindexLast, params, algo);
-     }
+
+    return DarkGravityWave(pindexLast, params);
 }
-
-
-unsigned int GetNextWorkRequiredV2(const CBlockIndex* pindexLast, const Consensus::Params& params, int algo) {
-    unsigned int npowWorkLimit = UintToArith256(params.powLimit).GetCompact();
-
-    // Genesis block
-    if (pindexLast == nullptr)
-        return npowWorkLimit;
-
-    // find first block in averaging interval
-    // Go back by what we want to be nAveragingInterval blocks per algo
-    const CBlockIndex* pindexFirst = pindexLast;
-
-    for (int i = 0; pindexFirst && i < NUM_ALGOS * params.nAveragingInterval; i++)
-    {
-        pindexFirst = pindexFirst->pprev;
-    }
-
-    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, params, algo);
-    if (pindexPrevAlgo == nullptr || pindexFirst == nullptr || params.fPowNoRetargeting)
-    {
-        return npowWorkLimit;
-    }
-
-    // Limit adjustment step
-    // Use medians to prevent time-warp attacks
-    int64_t nActualTimespan = pindexLast->GetMedianTimePast() - pindexFirst->GetMedianTimePast();
-    nActualTimespan = params.nAveragingTargetTimespan + (nActualTimespan - params.nAveragingTargetTimespan)/4;
-
-    if (nActualTimespan < params.nMinActualTimespan)
-        nActualTimespan = params.nMinActualTimespan;
-    if (nActualTimespan > params.nMaxActualTimespan)
-        nActualTimespan = params.nMaxActualTimespan;
-
-    //Global retarget
-    arith_uint256 bnNew;
-    bnNew.SetCompact(pindexPrevAlgo->nBits);
-
-    bnNew *= nActualTimespan;
-    bnNew /= params.nAveragingTargetTimespan;
-
-    //Per-algo retarget
-    int nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOS - 1 - pindexLast->nHeight;
-    if (nAdjustments > 0)
-    {
-        for (int i = 0; i < nAdjustments; i++)
-        {
-            bnNew *= 100;
-            bnNew /= (100 + params.nLocalTargetAdjustment);
-        }
-    }
-    else if (nAdjustments < 0)
-    {
-        for (int i = 0; i < -nAdjustments; i++)
-        {
-            bnNew *= (100 + params.nLocalTargetAdjustment);
-            bnNew /= 100;
-        }
-    }
-
-    if (bnNew > UintToArith256(params.powLimit))
-    {
-        bnNew = UintToArith256(params.powLimit);
-    }
-
-    return bnNew.GetCompact();
-}
-
-unsigned int GetNextWorkRequiredV3(const CBlockIndex* pindexLast, const Consensus::Params& params, int algo) {
-    unsigned int npowWorkLimit = UintToArith256(params.powLimit).GetCompact();
-
-    // Genesis block
-    if (pindexLast == nullptr)
-        return npowWorkLimit;
-
-    // find first block in averaging interval
-    // Go back by what we want to be nAveragingInterval blocks per algo
-    const CBlockIndex* pindexFirst = pindexLast;
-    for (int i = 0; pindexFirst && i < NUM_ALGOSV2 * params.nAveragingInterval; i++)
-    {
-        pindexFirst = pindexFirst->pprev;
-    }
-
-    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, params, algo);
-    if (pindexPrevAlgo == nullptr || pindexFirst == nullptr || params.fPowNoRetargeting)
-    {
-        return npowWorkLimit;
-    }
-
-    // Limit adjustment step
-    // Use medians to prevent time-warp attacks
-    int64_t nActualTimespan = pindexLast->GetMedianTimePast() - pindexFirst->GetMedianTimePast();
-    nActualTimespan = params.nAveragingTargetTimespanV2 + (nActualTimespan - params.nAveragingTargetTimespanV2)/4;
-
-    if (nActualTimespan < params.nMinActualTimespanV2)
-        nActualTimespan = params.nMinActualTimespanV2;
-    if (nActualTimespan > params.nMaxActualTimespanV2)
-        nActualTimespan = params.nMaxActualTimespanV2;
-
-    //Global retarget
-    arith_uint256 bnNew;
-    bnNew.SetCompact(pindexPrevAlgo->nBits);
-
-    bnNew *= nActualTimespan;
-    bnNew /= params.nAveragingTargetTimespanV2;
-
-    //Per-algo retarget
-    int nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOSV2 - 1 - pindexLast->nHeight;
-    if (nAdjustments > 0)
-    {
-        for (int i = 0; i < nAdjustments; i++)
-        {
-            bnNew *= 100;
-            bnNew /= (100 + params.nLocalTargetAdjustment);
-        }
-    }
-    else if (nAdjustments < 0)
-    {
-        for (int i = 0; i < -nAdjustments; i++)
-        {
-            bnNew *= (100 + params.nLocalTargetAdjustment);
-            bnNew /= 100;
-        }
-    }
-
-    if (bnNew > UintToArith256(params.powLimit))
-    {
-        bnNew = UintToArith256(params.powLimit);
-    }
-
-    return bnNew.GetCompact();
-}
-
-unsigned int GetNextWorkRequiredV4(const CBlockIndex* pindexLast, const Consensus::Params& params, int algo) {
-    unsigned int npowWorkLimit = UintToArith256(params.powLimit).GetCompact();
-
-    // Genesis block
-    if (pindexLast == nullptr)
-        return npowWorkLimit;
-
-    // find first block in averaging interval
-    // Go back by what we want to be nAveragingInterval blocks per algo
-    const CBlockIndex* pindexFirst = pindexLast;
-    if (pindexLast->nHeight < params.AlgoChangeHeight) {
-        for (int i = 0; pindexFirst && i < NUM_ALGOSV2 * params.nAveragingInterval; i++)
-        {
-            pindexFirst = pindexFirst->pprev;
-        }
-    } else {
-        for (int i = 0; pindexFirst && i < NUM_ALGOSV3 * params.nAveragingInterval; i++)
-        {
-            pindexFirst = pindexFirst->pprev;
-        }
-    }
-
-    const CBlockIndex* pindexPrevAlgo = GetLastBlockIndexForAlgo(pindexLast, params, algo);
-    if (pindexPrevAlgo == nullptr || pindexFirst == nullptr || params.fPowNoRetargeting)
-    {
-        return npowWorkLimit;
-    }
-
-    // Limit adjustment step
-    // Use medians to prevent time-warp attacks
-    int64_t nActualTimespan = pindexLast->GetMedianTimePast() - pindexFirst->GetMedianTimePast();
-    nActualTimespan = params.nAveragingTargetTimespanV2 + (nActualTimespan - params.nAveragingTargetTimespanV2)/4;
-
-    if (nActualTimespan < params.nMinActualTimespanV3)
-        nActualTimespan = params.nMinActualTimespanV3;
-    if (nActualTimespan > params.nMaxActualTimespanV3)
-        nActualTimespan = params.nMaxActualTimespanV3;
-
-    //Global retarget
-    arith_uint256 bnNew;
-    bnNew.SetCompact(pindexPrevAlgo->nBits);
-
-    bnNew *= nActualTimespan;
-    bnNew /= params.nAveragingTargetTimespanV2;
-
-    //Per-algo retarget
-    int nAdjustments{0};
-    if (pindexLast->nHeight < params.AlgoChangeHeight) {
-        nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOSV2 - 1 - pindexLast->nHeight;
-    } else {
-        nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOSV3 - 1 - pindexLast->nHeight;
-    }
-
-    if (nAdjustments > 0)
-    {
-        for (int i = 0; i < nAdjustments; i++)
-        {
-            bnNew *= 100;
-            bnNew /= (100 + params.nLocalTargetAdjustment);
-        }
-    }
-    else if (nAdjustments < 0)
-    {
-        for (int i = 0; i < -nAdjustments; i++)
-        {
-            bnNew *= (100 + params.nLocalTargetAdjustment);
-            bnNew /= 100;
-        }
-    }
-
-    if (bnNew > UintToArith256(params.powLimit))
-    {
-        bnNew = UintToArith256(params.powLimit);
-    }
-
-    return bnNew.GetCompact();
-}
-
 
 // for DIFF_BTC only!
 unsigned int CalculateNextWorkRequired(const CBlockIndex* pindexLast, int64_t nFirstBlockTime, const Consensus::Params& params)
