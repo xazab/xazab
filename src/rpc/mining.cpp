@@ -227,10 +227,10 @@ UniValue getmininginfo(const JSONRPCRequest& request)
     obj.pushKV("currentblocktx",   (uint64_t)nLastBlockTx);
     obj.pushKV("pow_algo_id",        miningAlgo);
     obj.pushKV("pow_algo",           GetAlgoName(miningAlgo));
-    obj.pushKV("difficulty",         (double)GetDifficulty(chainActive.Tip(), miningAlgo));
-    obj.pushKV("difficulty_sha256d", (double)GetDifficulty(chainActive.Tip(), ALGO_SHA256D));
-    obj.pushKV("difficulty_scrypt",  (double)GetDifficulty(chainActive.Tip(), ALGO_SCRYPT));
-    obj.pushKV("difficulty_x11",     (double)GetDifficulty(chainActive.Tip(), ALGO_X11));
+    obj.pushKV("difficulty",         (double)GetDifficulty(nullptr, miningAlgo));
+    obj.pushKV("difficulty_sha256d", (double)GetDifficulty(nullptr, ALGO_SHA256D));
+    obj.pushKV("difficulty_scrypt",  (double)GetDifficulty(nullptr, ALGO_SCRYPT));
+    obj.pushKV("difficulty_x11",     (double)GetDifficulty(nullptr, ALGO_X11));
     obj.pushKV("difficulty_yespower",(double)GetDifficulty(nullptr, ALGO_YESPOWER));
     obj.pushKV("difficulty_lyra2",   (double)GetDifficulty(nullptr, ALGO_LYRA2));
     obj.pushKV("networkhashps",    getnetworkhashps(request));

@@ -6,19 +6,18 @@
 #ifndef BITCOIN_PRIMITIVES_BLOCK_H
 #define BITCOIN_PRIMITIVES_BLOCK_H
 
-#include <primitives/transaction.h>
-#include <serialize.h>
-#include <uint256.h>
+#include "primitives/transaction.h"
+#include "serialize.h"
+#include "uint256.h"
 
 enum
 {
     ALGO_UNKNOWN  = -1,
     ALGO_SHA256D  = 0,
-    ALGO_SCRYPT	  = 1,
-    ALGO_X11      = 2,
+    ALGO_X11	  = 1,
+    ALGO_SCRYPT   = 2,
     ALGO_YESPOWER = 3,
     ALGO_LYRA2    = 4,
-
 };
 
 const int NUM_ALGOS = 3;
@@ -31,10 +30,10 @@ enum {
 
     // algo
     BLOCK_VERSION_ALGO           = (7 << 9),
-    BLOCK_VERSION_SCRYPT         = (0 << 9),
+    BLOCK_VERSION_X11            = (0 << 9),
     BLOCK_VERSION_LYRA2          = (1 << 9),
     BLOCK_VERSION_SHA256D        = (2 << 9),
-    BLOCK_VERSION_X11            = (4 << 9),
+    BLOCK_VERSION_SCRYPT         = (4 << 9),
     BLOCK_VERSION_YESPOWER       = (6 << 9),
 };
 
@@ -94,8 +93,6 @@ public:
 
     uint256 GetHash() const;
 
-    uint256 GetSha256Hash() const;
-
     uint256 GetPoWAlgoHash() const;
 
     int64_t GetBlockTime() const
@@ -122,14 +119,14 @@ public:
     CBlock(const CBlockHeader &header)
     {
         SetNull();
-        *(static_cast<CBlockHeader*>(this)) = header;
+        *((CBlockHeader*)this) = header;
     }
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
     inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITEAS(CBlockHeader, *this);
+        READWRITE(*(CBlockHeader*)this);
         READWRITE(vtx);
     }
 
@@ -166,7 +163,10 @@ struct CBlockLocator
 
     CBlockLocator() {}
 
-    explicit CBlockLocator(const std::vector<uint256>& vHaveIn) : vHave(vHaveIn) {}
+    CBlockLocator(const std::vector<uint256>& vHaveIn)
+    {
+        vHave = vHaveIn;
+    }
 
     ADD_SERIALIZE_METHODS;
 

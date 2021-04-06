@@ -4,9 +4,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <primitives/block.h>
+
 #include <arith_uint256.h>
-#include <hash.h>
 #include <streams.h>
+#include <hash.h>
 #include <tinyformat.h>
 #include <utilstrencodings.h>
 #include <crypto/common.h>
@@ -22,11 +23,6 @@ uint256 CBlockHeader::GetHash() const
     return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
 }
 
-uint256 CBlockHeader::GetSha256Hash() const
-{
-    return SerializeHash(*this);
-}
-
 int CBlockHeader::GetAlgo() const
 {
     switch (nVersion & BLOCK_VERSION_ALGO)
@@ -39,7 +35,7 @@ int CBlockHeader::GetAlgo() const
             return ALGO_X11;
         case BLOCK_VERSION_YESPOWER:
             return ALGO_YESPOWER;
-	case BLOCK_VERSION_LYRA2:
+        case BLOCK_VERSION_LYRA2:
             return ALGO_LYRA2;
     }
     return ALGO_UNKNOWN;
@@ -51,7 +47,7 @@ uint256 CBlockHeader::GetPoWAlgoHash() const
     {
         case ALGO_SHA256D:
         {
-            return GetSha256Hash();
+           return SerializeHash(*this);
         }
         case ALGO_SCRYPT:
         {
@@ -63,7 +59,7 @@ uint256 CBlockHeader::GetPoWAlgoHash() const
         {
             return GetHash();
         }
-	case ALGO_YESPOWER:
+        case ALGO_YESPOWER:
         {
             uint256 thash;
             yespower_hash(BEGIN(nVersion), BEGIN(thash));
@@ -93,8 +89,9 @@ std::string CBlock::ToString() const
         hashMerkleRoot.ToString(),
         nTime, nBits, nNonce,
         vtx.size());
-    for (const auto& tx : vtx) {
-        s << "  " << tx->ToString() << "\n";
+    for (unsigned int i = 0; i < vtx.size(); i++)
+    {
+        s << "  " << vtx[i]->ToString() << "\n";
     }
     return s.str();
 }
@@ -111,7 +108,7 @@ std::string GetAlgoName(int Algo)
             return std::string("x11");
         case ALGO_YESPOWER:
             return std::string("yespower");
-	case ALGO_LYRA2:
+        case ALGO_LYRA2:
             return std::string("lyra2");
     }
     return std::string("unknown");

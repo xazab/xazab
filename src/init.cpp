@@ -930,7 +930,7 @@ void PeriodicStats()
     statsClient.gauge("network.petahashesPerSecond", nNetworkHashPS / 1e15);
     statsClient.gauge("network.exahashesPerSecond", nNetworkHashPS / 1e18);
     // No need for cs_main, we never use null tip here
-    statsClient.gauge("network.difficulty", (double)GetDifficulty(tip, miningAlgo));
+    statsClient.gauge("network.difficulty", (double)GetDifficulty(nullptr, miningAlgo));
 
     statsClient.gauge("transactions.mempool.totalTransactions", mempool.size(), 1.0f);
     statsClient.gauge("transactions.mempool.totalTxBytes", (int64_t) mempool.GetTotalTxSize(), 1.0f);

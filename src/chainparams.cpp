@@ -361,16 +361,10 @@ public:
         consensus.nMaxAdjustUp = 8; // 8% adjustment up
         consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
         consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
-        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
-        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
-        consensus.nMinActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUpV2) / 100;
-        consensus.nMaxActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDownV2) / 100;
-        consensus.nMinActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
-        consensus.nMaxActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
-        consensus.DiffChangeHeight = 222500;
-	consensus.v2DiffChangeHeight = 222600;
-        consensus.v3DiffChangeHeight = 222700;
-        consensus.AlgoChangeHeight = 222800;
+        consensus.nMinActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nWork = 226539;
+        consensus.AlgoChangeHeight =226539;
         consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
         consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
         consensus.fPowAllowMinDifficultyBlocks = false;
@@ -555,17 +549,34 @@ public:
         consensus.nMasternodeMinimumConfirmations = 1;
         consensus.BIP34Height = 76;
         consensus.BIP34Hash = uint256S("");
-        consensus.BIP65Height = 2431; // 0000039cf01242c7f921dcb4806a5994bc003b48c1973ae0c89b67809c2bb2ab
-        consensus.BIP66Height = 2075; // 0000002acdd29a14583540cb72e1c5cc83783560e38fa7081495d474fe1671f7
-        consensus.DIP0001Height = 5500;
-        consensus.DIP0003Height = 7000;
-        consensus.DIP0003EnforcementHeight = 7300;
+        consensus.BIP65Height = 5; // 0000039cf01242c7f921dcb4806a5994bc003b48c1973ae0c89b67809c2bb2ab
+        consensus.BIP66Height = 6; // 0000002acdd29a14583540cb72e1c5cc83783560e38fa7081495d474fe1671f7
+        consensus.DIP0001Height = 550;
+        consensus.DIP0003Height = 700;
+        consensus.DIP0003EnforcementHeight = 730;
         consensus.DIP0003EnforcementHash = uint256S("");
-        consensus.DIP0008Height = 7880; // 000000000e9329d964d80e7dab2e704b43b6bd2b91fea1e9315d38932e55fb55
-        consensus.nCollateralNewHeight = 170;
+        consensus.DIP0008Height = 2000; // 000000000e9329d964d80e7dab2e704b43b6bd2b91fea1e9315d38932e55fb55
+        consensus.nCollateralNewHeight = 2500;
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
+
+
+        consensus.multiAlgoTargetSpacing = 60 * 3; // NUM_ALGOS * 90 seconds
+        consensus.multiAlgoTargetSpacingV2 = 60 * 4; // add yespower
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
+        consensus.nAveragingTargetTimespanV2 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV2; // 10 * NUM_ALGOS * 90
+        consensus.nMaxAdjustDown = 16; // 16% adjustment down
+        consensus.nMaxAdjustUp = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
+        consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
+        consensus.nMinActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nWork = 10;
+        consensus.AlgoChangeHeight =10;
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per alg
+
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nPowKGWHeight = 42; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
@@ -694,10 +705,6 @@ public:
         checkpointData = {
             {
               {0, uint256S("0x00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c")},
-              {1, uint256S("0x00000341e3ac6c4bffa32ba7915fe4919610a06725d6940595051f9539a957be")},
-              {2, uint256S("0x0000000259d243f9374a9b8ea65a687b2ade3650b620306a4ba6c25bb13a88f8")},
-              {3, uint256S("0x0000001cf686ddf99a977123f47577c1f09ced48cea35664d510bf1063d83b9d")},
-              {4, uint256S("0x000000017f805e92bcee86bc9ac9f87e4030e80954dd8219a955c3324de7718e")},
             }
         };
 
@@ -745,6 +752,23 @@ public:
        consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
+
+
+        consensus.multiAlgoTargetSpacing = 60 * 3; // NUM_ALGOS * 90 seconds
+        consensus.multiAlgoTargetSpacingV2 = 60 * 4; // add yespower
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
+        consensus.nAveragingTargetTimespanV2 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV2; // 10 * NUM_ALGOS * 90
+        consensus.nMaxAdjustDown = 16; // 16% adjustment down
+        consensus.nMaxAdjustUp = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
+        consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
+        consensus.nMinActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nWork = 10;
+        consensus.AlgoChangeHeight = 10;
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
+
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
         consensus.nPowKGWHeight = 4001; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
@@ -922,7 +946,24 @@ public:
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
-        consensus.fPowAllowMinDifficultyBlocks = true;
+
+
+        consensus.multiAlgoTargetSpacing = 60 * 3; // NUM_ALGOS * 90 seconds
+        consensus.multiAlgoTargetSpacingV2 = 60 * 4; // add yespower
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
+        consensus.nAveragingTargetTimespanV2 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV2; // 10 * NUM_ALGOS * 90
+        consensus.nMaxAdjustDown = 16; // 16% adjustment down
+        consensus.nMaxAdjustUp = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
+        consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
+        consensus.nMinActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV1 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nWork = 10;
+        consensus.AlgoChangeHeight = 10;
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
+
+	consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
         consensus.nPowKGWHeight = 15200; // same as mainnet
         consensus.nPowDGWHeight = 34140; // same as mainnet
