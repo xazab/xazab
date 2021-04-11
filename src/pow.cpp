@@ -260,10 +260,10 @@ const    unsigned int bnPowLimit  = UintToArith256(params.powLimit).GetCompact()
 
     if (pindexLast->nHeight + 1 < params.nPowDGWHeight) {
         return KimotoGravityWell(pindexLast, params);
-    } else{
+    } else if (pindexLast->nHeight <  params.v2DiffChangeHeight){
     return DarkGravityWave(pindexLast, params);
-    }
-    if (pindexLast->nHeight >= params.nWork){
+    }else{
+ //   if (pindexLast->nHeight >= params.nWork){
         return XazabWork(pindexLast, params, algo);
     }
 }

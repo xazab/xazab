@@ -353,6 +353,8 @@ public:
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
 
+        consensus.nAveragingInterval = 10; // 10 blocks
+        consensus.v2DiffChangeHeight = 226539;
         consensus.multiAlgoTargetSpacing = 60 * 3; // NUM_ALGOS * 90 seconds
         consensus.multiAlgoTargetSpacingV2 = 60 * 4; // add yespower
         consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
@@ -753,7 +755,7 @@ public:
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
 
-
+        consensus.nAveragingInterval = 10; // 10 blocks
         consensus.multiAlgoTargetSpacing = 60 * 3; // NUM_ALGOS * 90 seconds
         consensus.multiAlgoTargetSpacingV2 = 60 * 4; // add yespower
         consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
@@ -947,7 +949,7 @@ public:
         consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
         consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
 
-
+        consensus.v2DiffChangeHeight = 100000;
         consensus.multiAlgoTargetSpacing = 60 * 3; // NUM_ALGOS * 90 seconds
         consensus.multiAlgoTargetSpacingV2 = 60 * 4; // add yespower
         consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90

@@ -1086,6 +1086,25 @@ UniValue echo(const JSONRPCRequest& request)
     return request.params;
 }
 
+UniValue setalgo(const JSONRPCRequest& request)
+{
+    if (request.fHelp || request.params.size() != 1)
+    throw std::runtime_error(
+        "setalgo \"algo\"\n"
+        "\nSets algo and returns current and previous algo\n"
+        "Uses the same input as commandline parameters or shield.conf\n"
+        "If it's invalid the ALGO will be set to scrypt"
+    );
+    UniValue obj(UniValue::VOBJ);
+    std::string strAlgo = request.params[0].get_str();
+    transform(strAlgo.begin(),strAlgo.end(),strAlgo.begin(),::tolower);
+    obj.pushKV("old_algo", GetAlgoName(ALGO));
+    ALGO = GetAlgoByName(strAlgo);
+    obj.pushKV("new_algo", GetAlgoName(ALGO));
+    return obj;
+}
+
+
 static UniValue getinfo_deprecated(const JSONRPCRequest& request)
 {
     throw JSONRPCError(RPC_METHOD_NOT_FOUND,
@@ -1108,6 +1127,7 @@ static const CRPCCommand commands[] =
     { "util",               "createmultisig",         &createmultisig,         {"nrequired","keys"} },
     { "util",               "verifymessage",          &verifymessage,          {"address","signature","message"} },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, {"privkey","message"} },
+    { "util",               "setalgo",                &setalgo,                {"algo"}},
     { "blockchain",         "getspentinfo",           &getspentinfo,           {"json"} },
 
     /* Address index */
