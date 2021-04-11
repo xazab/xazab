@@ -441,14 +441,8 @@ bool CBlockTreeDB::LoadBlockIndexGuts(const Consensus::Params& consensusParams, 
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                // Disable PoW Sanity check while loading block index from disk.
-                // We use the sha256 hash for the block index for performance reasons, which is recorded for later use.
-                // CheckProofOfWork() also uses the scrypt/X11 hash which is discarded after a block is accepted.
-                // While it is technically feasible to verify the PoW, doing so takes several minutes as it
-                // requires recomputing every PoW hash during every startup.
-                // We opt instead to simply trust the data that is on your local disk.
-                //if (!CheckProofOfWork(pindexNew->GetBlockHash(), pindexNew->nBits, Params().GetConsensus()))
-                //    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
+                if (!CheckProofOfWork(pindexNew->GetBlockHeader().GetPoWHash(pindexNew->GetBlockHeader().GetAlgo()), pindexNew->nBits, consensusParams))
+                    return error("%s: CheckProofOfWork failed: %s", __func__, pindexNew->ToString());
 
                 pcursor->Next();
             } else {

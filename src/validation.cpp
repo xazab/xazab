@@ -71,6 +71,14 @@
 #define MICRO 0.000001
 #define MILLI 0.001
 
+
+const CBlockIndex* GetLastBlockIndex4Algo(const CBlockIndex* pindex, int algo)
+{
+    while (pindex && pindex->pprev && pindex->GetBlockHeader().GetAlgo() != algo)
+        pindex = pindex->pprev;
+    return pindex;
+}
+
 /**
  * Global state
  */
@@ -1089,7 +1097,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (!CheckProofOfWork(block.GetPoWHash(block.GetAlgo()), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -2680,8 +2688,9 @@ void static UpdateTip(const CBlockIndex *pindexNew, const CChainParams& chainPar
         // Check the version of the last 100 blocks to see if we need to upgrade:
         for (int i = 0; i < 100 && pindex != nullptr; i++)
         {
-            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus(), pindex->GetAlgo());
-            if (pindex->nVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (pindex->nVersion & ~nExpectedVersion) != 0)
+            int32_t nExpectedVersion = ComputeBlockVersion(pindex->pprev, chainParams.GetConsensus(), pindex->GetAlgo(), true); // FIXME: check for other cases
+            int32_t nCorrectedVersion = pindex->nVersion & (~BLOCK_VERSION_ALGO); // Remove the Algo versions
+            if (nCorrectedVersion > VERSIONBITS_LAST_OLD_BLOCK_VERSION && (nCorrectedVersion & ~nExpectedVersion) != 0)
                 ++nUpgraded;
             pindex = pindex->pprev;
         }
@@ -3525,8 +3534,21 @@ static bool FindUndoPos(CValidationState &state, int nFile, CDiskBlockPos &pos, 
 
 static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const Consensus::Params& consensusParams, bool fCheckPOW = true)
 {
-    // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
+    if (block.nVersion > 1)
+        switch (block.nVersion & BLOCK_VERSION_ALGO)
+        {
+            case BLOCK_VERSION_SCRYPT:
+            case BLOCK_VERSION_X11:
+            case BLOCK_VERSION_LYRA2:
+            case BLOCK_VERSION_SHA256D:
+            case BLOCK_VERSION_YESPOWER:
+                break;
+            default:
+                return state.DoS(50, false, REJECT_INVALID, "unknown-algo", false, "unknown proof of work algorithm");
+        }
+
+    	// Check proof of work matches claimed amount
+    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(block.GetAlgo()), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     // Check DevNet

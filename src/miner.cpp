@@ -59,8 +59,8 @@ int64_t UpdateTime(CBlockHeader* pblock, const Consensus::Params& consensusParam
         pblock->nTime = nNewTime;
 
     // Updating time can change work required on testnet:
-    if (consensusParams.fPowAllowMinDifficultyBlocks)
-        pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams, algo);
+   // if (consensusParams.fPowAllowMinDifficultyBlocks)
+   //     pblock->nBits = GetNextWorkRequired(pindexPrev, pblock, consensusParams, algo);
 
     return nNewTime - nOldTime;
 }
@@ -136,11 +136,34 @@ std::unique_ptr<CBlockTemplate> BlockAssembler::CreateNewBlock(const CScript& sc
     bool fDIP0003Active_context = nHeight >= chainparams.GetConsensus().DIP0003Height;
     bool fDIP0008Active_context = nHeight >= chainparams.GetConsensus().DIP0008Height;
 
-    pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus(), chainparams.BIP9CheckMasternodesUpgraded(), algo);
-    // -regtest only: allow overriding block.nVersion with
+ //   pblock->nVersion = ComputeBlockVersion(pindexPrev, chainparams.GetConsensus(), chainparams.BIP9CheckMasternodesUpgraded());
+ pblock->nVersion = pindexPrev->nHeight >= chainparams.GetConsensus().nWork? BLOCK_VERSION_DEFAULT : BLOCK_VERSION_DEFAULT;
+ // -regtest only: allow overriding block.nVersion with
     // -blockversion=N to test forking scenarios
     if (chainparams.MineBlocksOnDemand())
         pblock->nVersion = gArgs.GetArg("-blockversion", pblock->nVersion);
+
+    switch (algo)
+    {
+	    case ALGO_LYRA2:
+	        pblock->nVersion |= BLOCK_VERSION_LYRA2;
+            break;
+        case ALGO_SCRYPT:
+            pblock->nVersion |= BLOCK_VERSION_SCRYPT;
+            break;
+        case ALGO_X11:
+            pblock->nVersion |= BLOCK_VERSION_X11;
+            break;
+        case ALGO_YESPOWER:
+            pblock->nVersion |= BLOCK_VERSION_YESPOWER;
+            break;
+        case ALGO_SHA256D:
+            pblock->nVersion |= BLOCK_VERSION_SHA256D;
+            break;
+        default:
+            error("CreateNewBlock: bad algo");
+            return NULL;
+   }
 
     pblock->nTime = GetAdjustedTime();
     const int64_t nMedianTimePast = pindexPrev->GetMedianTimePast();

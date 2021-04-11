@@ -330,3 +330,5 @@ const CBlockIndex* GetLastBlockIndexForAlgo(const CBlockIndex* pindex, const Con
     }
     return nullptr;
 }
+
+

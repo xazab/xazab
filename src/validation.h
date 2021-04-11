@@ -483,12 +483,14 @@ extern std::unique_ptr<CBlockTreeDB> pblocktree;
  */
 int GetSpendHeight(const CCoinsViewCache& inputs);
 
+const CBlockIndex* GetLastBlockIndex4Algo(const CBlockIndex* pindex, int algo);
+
 extern VersionBitsCache versionbitscache;
 
 /**
  * Determine what nVersion a new block should use.
  */
-int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params, int algo,bool fCheckMasternodesUpgraded = false);
+int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Params& params, bool fCheckMasternodesUpgraded = false);
 
 /**
  * Return true if hash can be found in chainActive at nBlockHeight height.

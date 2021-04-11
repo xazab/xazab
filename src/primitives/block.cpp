@@ -15,50 +15,33 @@
 #include <crypto/algos/yespower/yespower.h>
 #include <crypto/algos/Lyra2Z/Lyra2.h>
 
+int ALGO = ALGO_X11;
+
 uint256 CBlockHeader::GetHash() const
 {
+    return GetPoWHash(ALGO_X11);
+}
+
+
+uint256 CBlockHeader::GetSerializedHash() const
+{
+    return SerializeHash(*this);
+}
+
+
+uint256 CBlockHeader::GetPoWHash(int algo) const
+{
+    uint256 thash;
     std::vector<unsigned char> vch(80);
     CVectorWriter ss(SER_NETWORK, PROTOCOL_VERSION, vch, 0);
     ss << *this;
-    return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
-}
 
-int CBlockHeader::GetAlgo() const
-{
-    switch (nVersion & BLOCK_VERSION_ALGO)
+    switch (algo)
     {
-        case BLOCK_VERSION_SCRYPT:
-            return ALGO_SCRYPT;
-        case BLOCK_VERSION_SHA256D:
-            return ALGO_SHA256D;
-        case BLOCK_VERSION_X11:
-            return ALGO_X11;
-        case BLOCK_VERSION_YESPOWER:
-            return ALGO_YESPOWER;
-        case BLOCK_VERSION_LYRA2:
-            return ALGO_LYRA2;
-    }
-    return ALGO_UNKNOWN;
-}
-
-uint256 CBlockHeader::GetPoWAlgoHash() const
-{
-    switch (GetAlgo())
-    {
-        case ALGO_SHA256D:
-        {
-           return SerializeHash(*this);
-        }
         case ALGO_SCRYPT:
-        {
-            uint256 thash;
-            scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
-            return thash;
-        }
-        case ALGO_X11:
-        {
-            return GetHash();
-        }
+          scrypt_1024_1_1_256(BEGIN(nVersion), BEGIN(thash));
+        case ALGO_SHA256D:
+        return GetSerializedHash();
         case ALGO_YESPOWER:
         {
             uint256 thash;
@@ -68,23 +51,25 @@ uint256 CBlockHeader::GetPoWAlgoHash() const
         case ALGO_LYRA2:
         {
             uint256 powHash;
-            LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 330, 256);
+
+         LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 330, 256);
             return powHash;
         }
-        case ALGO_UNKNOWN:
-            return ArithToUint256(~arith_uint256(0));
-    }
-    return GetHash();
-}
+        case ALGO_X11:
+        default:
+        return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
 
+    }
+    return HashX11((const char *)vch.data(), (const char *)vch.data() + vch.size());
+}
+    
 std::string CBlock::ToString() const
 {
     std::stringstream s;
-    s << strprintf("CBlock(hash=%s, ver=0x%08x, pow_algo=%d, pow_hash=%s, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+    s << strprintf("CBlock(hash=%s, ver=0x%08x, pow_algo=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
         GetHash().ToString(),
         nVersion,
         GetAlgo(),
-        GetPoWAlgoHash().ToString(),
         hashPrevBlock.ToString(),
         hashMerkleRoot.ToString(),
         nTime, nBits, nNonce,
@@ -96,20 +81,3 @@ std::string CBlock::ToString() const
     return s.str();
 }
 
-std::string GetAlgoName(int Algo)
-{
-    switch (Algo)
-    {
-        case ALGO_SHA256D:
-            return std::string("sha256d");
-        case ALGO_SCRYPT:
-            return std::string("scrypt");
-        case ALGO_X11:
-            return std::string("x11");
-        case ALGO_YESPOWER:
-            return std::string("yespower");
-        case ALGO_LYRA2:
-            return std::string("lyra2");
-    }
-    return std::string("unknown");
-}

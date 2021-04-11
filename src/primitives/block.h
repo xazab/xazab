@@ -13,8 +13,8 @@
 enum
 {
     ALGO_UNKNOWN  = -1,
-    ALGO_SHA256D  = 0,
-    ALGO_X11	  = 1,
+    ALGO_X11      = 0,
+    ALGO_SHA256D  = 1,
     ALGO_SCRYPT   = 2,
     ALGO_YESPOWER = 3,
     ALGO_LYRA2    = 4,
@@ -37,7 +37,44 @@ enum {
     BLOCK_VERSION_YESPOWER       = (6 << 9),
 };
 
-std::string GetAlgoName(int Algo);
+static inline int GetAlgoByName(std::string strAlgo){
+    if (strAlgo == "scrypt")
+        return ALGO_SCRYPT;
+    if (strAlgo == "x11")
+        return ALGO_X11;
+    if (strAlgo == "lyra2")
+	    return ALGO_LYRA2;
+    if (strAlgo == "sha" || strAlgo == "sha256" || strAlgo == "sha256d")
+	    return ALGO_SHA256D;
+    if (strAlgo == "yespower")
+	    return ALGO_YESPOWER;
+    //printf("GetAlgoByName(): Can't Parse Algo, %s\n", strAlgo.c_str());
+    return ALGO_X11;
+}
+
+static inline std::string GetAlgoName(int algo)
+{
+    switch (algo)
+    {
+        case ALGO_SCRYPT:
+            return std::string("scrypt");
+        case ALGO_X11:
+            return std::string("x11");
+        case ALGO_LYRA2:
+            return std::string("lyra2");
+        case ALGO_SHA256D:
+            return std::string("sha256d");
+        case ALGO_YESPOWER:
+            return std::string("yespower");
+    }
+    return std::string("unknown");
+}
+
+
+/**
+ * Current default algo to use from multi algo
+ */
+extern int ALGO;
 
 /** Nodes collect new transactions into a block, hash them into a hash tree,
  * and scan through nonce values to make the block's hash satisfy proof-of-work
@@ -89,11 +126,32 @@ public:
         return (nBits == 0);
     }
 
-    int GetAlgo() const;
-
     uint256 GetHash() const;
-
+    uint256 GetPoWHash(int algo) const;
+    uint256 GetSerializedHash() const;
     uint256 GetPoWAlgoHash() const;
+
+    int GetAlgo() const
+    {
+        switch (nVersion & BLOCK_VERSION_ALGO)
+        {
+            case BLOCK_VERSION_SCRYPT:
+                return ALGO_SCRYPT;
+            case BLOCK_VERSION_X11:
+                return ALGO_X11;
+            case BLOCK_VERSION_LYRA2:
+                return ALGO_LYRA2;
+            case BLOCK_VERSION_YESPOWER:
+                return ALGO_YESPOWER;
+        }
+
+        return ALGO_X11;
+    }
+
+    std::string GetAlgoName() const
+    {
+        return ::GetAlgoName(GetAlgo());
+    }
 
     int64_t GetBlockTime() const
     {

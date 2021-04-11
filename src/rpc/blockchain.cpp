@@ -59,6 +59,8 @@ static CUpdatedBlock latestblock;
 
 extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry);
 
+
+
 double GetDifficulty(const CChain& chain, const CBlockIndex* blockindex, int algo)
 {
     unsigned int nBits;
@@ -102,6 +104,7 @@ double GetDifficulty(const CBlockIndex* blockindex, int algo)
     return GetDifficulty(chainActive, blockindex, algo);
 }
 
+
 UniValue blockheaderToJSON(const CBlockIndex* blockindex)
 {
     AssertLockHeld(cs_main);
@@ -143,6 +146,8 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     AssertLockHeld(cs_main);
     UniValue result(UniValue::VOBJ);
     result.pushKV("hash", blockindex->GetBlockHash().GetHex());
+    result.pushKV("pow_hash", block.GetPoWHash(block.GetAlgo()).GetHex());
+    result.pushKV("algo", GetAlgoName(block.GetAlgo()));
     int confirmations = -1;
     // Only report confirmations if the block is on the main chain
     if (chainActive.Contains(blockindex))
@@ -152,10 +157,6 @@ UniValue blockToJSON(const CBlock& block, const CBlockIndex* blockindex, bool tx
     result.pushKV("height", blockindex->nHeight);
     result.pushKV("version", block.nVersion);
     result.pushKV("versionHex", strprintf("%08x", block.nVersion));
-    int algo = block.GetAlgo();
-    result.pushKV("pow_algo_id", algo);
-    result.pushKV("pow_algo", GetAlgoName(algo));
-    result.pushKV("pow_hash", block.GetPoWAlgoHash().GetHex());
     result.pushKV("merkleroot", block.hashMerkleRoot.GetHex());
     bool chainLock = llmq::chainLocksHandler->HasChainLock(blockindex->nHeight, blockindex->GetBlockHash());
     UniValue txs(UniValue::VARR);
