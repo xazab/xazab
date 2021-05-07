@@ -1,6 +1,0 @@
-usr/local/bin/xazab-qt usr/bin
-share/pixmaps/xazab32.xpm usr/share/pixmaps
-share/pixmaps/xazab16.xpm usr/share/pixmaps
-share/pixmaps/xazab128.png usr/share/pixmaps
-debian/xazab-qt.desktop usr/share/applications
-debian/xazab-qt.protocol usr/share/kde4/services/
