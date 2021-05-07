@@ -1,0 +1,22 @@
+[Unit]
+Description=Xazab's distributed currency daemon
+After=network.target
+
+[Service]
+User=xazabcore
+Group=xazabcore
+
+Type=forking
+PIDFile=/var/lib/xazabd/xazabd.pid
+ExecStart=/usr/bin/xazabd -daemon -pid=/var/lib/xazabd/xazabd.pid \
+-conf=/etc/xazabcore/xazab.conf -datadir=/var/lib/xazabd -disablewallet
+
+Restart=always
+PrivateTmp=true
+TimeoutStopSec=60s
+TimeoutStartSec=2s
+StartLimitInterval=120s
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target
