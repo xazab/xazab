@@ -493,39 +493,62 @@ class CTestNetParams : public CChainParams {
 public:
     CTestNetParams() {
         strNetworkID = "test";
-        consensus.nSubsidyHalvingInterval = 210240;
-        consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
-        consensus.nMasternodePaymentsIncreaseBlock = 4030;
-        consensus.nMasternodePaymentsIncreasePeriod = 10;
-        consensus.nInstantSendConfirmationsRequired = 2;
-        consensus.nInstantSendKeepLock = 6;
-        consensus.nBudgetPaymentsStartBlock = 4100;
-        consensus.nBudgetPaymentsCycleBlocks = 50;
-        consensus.nBudgetPaymentsWindowBlocks = 10;
-        consensus.nSuperblockStartBlock = 4200; // NOTE: Should satisfy nSuperblockStartBlock > nBudgetPeymentsStartBlock
-        consensus.nSuperblockStartHash = uint256(); // do not check this on testnet
-        consensus.nSuperblockCycle = 24; // Superblocks can be issued hourly on testnet
-        consensus.nGovernanceMinQuorum = 1;
-        consensus.nGovernanceFilterElements = 500;
-        consensus.nMasternodeMinimumConfirmations = 1;
-        consensus.BIP34Height = 76;
-        consensus.BIP34Hash = uint256S("0x000008ebb1db2598e897d17275285767717c6acfeac4c73def49fbea1ddcbcb6");
-        consensus.BIP65Height = 2431; // 0000039cf01242c7f921dcb4806a5994bc003b48c1973ae0c89b67809c2bb2ab
-        consensus.BIP66Height = 2075; // 0000002acdd29a14583540cb72e1c5cc83783560e38fa7081495d474fe1671f7
-        consensus.DIP0001Height = 5500;
-        consensus.DIP0003Height = 7000;
-        consensus.DIP0003EnforcementHeight = 7300;
-        consensus.DIP0003EnforcementHash = uint256S("00000055ebc0e974ba3a3fb785c5ad4365a39637d4df168169ee80d313612f8f");
+        consensus.nSubsidyHalvingInterval = 210240; // Note: actual number of blocks per calendar year with DGW v3 is ~200700 (for example 449750 - 249050)
+        consensus.nMasternodePaymentsStartBlock = 2; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
+        consensus.nMasternodePaymentsIncreaseBlock = 158000; // actual historical value
+        consensus.nMasternodePaymentsIncreasePeriod = 576*30; // 17280 - actual historical value
+        consensus.nInstantSendConfirmationsRequired = 6;
+        consensus.nInstantSendKeepLock = 24;
+        consensus.nBudgetPaymentsStartBlock = 328008; // actual historical value
+        consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
+        consensus.nBudgetPaymentsWindowBlocks = 100;
+        consensus.nSuperblockStartBlock = 0; // The block at which 12.1 goes live (end of final 12.0 budget cycle)
+        consensus.nSuperblockStartHash = uint256S("00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6");
+        consensus.nSuperblockCycle = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
+        consensus.nGovernanceMinQuorum = 10;
+        consensus.nGovernanceFilterElements = 20000;
+        consensus.nMasternodeMinimumConfirmations = 15;
+        consensus.BIP34Height = 0;
+        consensus.BIP34Hash = uint256S("00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6");
+        consensus.BIP65Height = 0; // 00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6
+        consensus.BIP66Height = 0; //  00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6
+        consensus.DIP0001Height = 10;
+        consensus.DIP0003Height = 20;
+        consensus.DIP0003EnforcementHeight = 30;
+        consensus.DIP0003EnforcementHash = uint256S("");
+        consensus.DIP0008Height = 1000;
+        consensus.nCollateralNewHeight = 1000;
+
         consensus.powLimit = uint256S("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 20
-        consensus.nPowTargetTimespan = 24 * 60 * 60; // Xazab: 1 day
-        consensus.nPowTargetSpacing = 2.5 * 60; // Xazab: 2.5 minutes
-        consensus.fPowAllowMinDifficultyBlocks = true;
-        consensus.fPowNoRetargeting = false;
+        consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
+        consensus.nPowTargetSpacing =  60; // Xazab: 1 minutes
 
-        consensus.nunuHeight =  370000;
+        consensus.nAveragingInterval = 10; // 10 blocks
+        consensus.multiAlgoTargetSpacing = 90 * 3; // NUM_ALGOS * 90 seconds
+        consensus.multiAlgoTargetSpacingV2 = 90 * 4; // add yespower
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
+        consensus.nAveragingTargetTimespanV2 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV2; // 10 * NUM_ALGOS * 90
+        consensus.nMaxAdjustDown = 16; // 16% adjustment down
+        consensus.nMaxAdjustUp = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
+        consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
+        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
+        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
+        consensus.nMinActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nMinActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.vDiffChangeHeight =  2604;
+        consensus.v2DiffChangeHeight =  2604;
+        consensus.v3DiffChangeHeight = 2605;
+        consensus.AlgoChangeHeight =  2606;
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
+        consensus.nWork =  2608;
+        consensus.nunuHeight =  3000;
 
-        consensus.nPowKGWHeight = 4002; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
-        consensus.nPowDGWHeight = 4002;
+        consensus.nPowKGWHeight = 4; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
+        consensus.nPowDGWHeight = 5;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -584,16 +607,16 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nFalloffCoeff = 5; // this corresponds to 10 periods
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x00000000000000000000000000000000000000000000000000ac720e0b2ed13d"); // 260000
+        consensus.nMinimumChainWork = uint256S("");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x000002bbe0f404f22f0aff8032e2a87cef6a32f0840e9199aa0b79ba3870b33c"); // 260000
+        consensus.defaultAssumeValid = uint256S("");
 
         pchMessageStart[0] = 0x67;
         pchMessageStart[1] = 0x43;
         pchMessageStart[2] = 0xca;
         pchMessageStart[3] = 0xff;
-        nDefaultPort = 29999;
+        nDefaultPort = 40404;
         nPruneAfterHeight = 1000;
 
         genesis = CreateGenesisBlock(1390666206UL, 3861367235UL, 0x1e0ffff0, 1, 50 * COIN);
@@ -649,15 +672,15 @@ public:
 
         checkpointData = (CCheckpointData) {
             {
-                {261, uint256S("0x00000c26026d0815a7e2ce4fa270775f61403c040647ff2c3091f99e894a4618")},
+                {0, uint256S("0x00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6")},
             }
         };
 
         chainTxData = ChainTxData{
-            1574164251, // * UNIX timestamp of last known number of transactions (Block 213054)
-            1733259,    // * total number of transactions between genesis and that timestamp
+            1390666206, // * UNIX timestamp of last known number of transactions (Block 213054)
+            0,    // * total number of transactions between genesis and that timestamp
                         //   (the tx=... number in the SetBestChain debug.log lines)
-            0.01        // * estimated number of transactions per second after that timestamp
+            0        // * estimated number of transactions per second after that timestamp
         };
 
     }
@@ -671,7 +694,7 @@ public:
     CDevNetParams() {
         strNetworkID = "dev";
         consensus.nSubsidyHalvingInterval = 210240;
-        consensus.nMasternodePaymentsStartBlock = 4010; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
+        consensus.nMasternodePaymentsStartBlock = 2; // not true, but it's ok as long as it's less then nMasternodePaymentsIncreaseBlock
         consensus.nMasternodePaymentsIncreaseBlock = 4030;
         consensus.nMasternodePaymentsIncreasePeriod = 10;
         consensus.nInstantSendConfirmationsRequired = 2;
@@ -692,16 +715,40 @@ public:
         consensus.DIP0003Height = 2; // DIP0003 activated immediately on devnet
         consensus.DIP0003EnforcementHeight = 2; // DIP0003 activated immediately on devnet
         consensus.DIP0003EnforcementHash = uint256();
+        consensus.DIP0008Height = 1000;
+        consensus.nCollateralNewHeight = 1000;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
-        consensus.nPowTargetTimespan = 24 * 60 * 60; // Xazab: 1 day
-        consensus.nPowTargetSpacing = 2.5 * 60; // Xazab: 2.5 minutes
+        consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
+        consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
 
-        consensus.nunuHeight =  370000;
+        consensus.nAveragingInterval = 10; // 10 blocks
+        consensus.multiAlgoTargetSpacing = 90 * 3; // NUM_ALGOS * 90 seconds
+        consensus.multiAlgoTargetSpacingV2 = 90 * 4; // add yespower
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
+        consensus.nAveragingTargetTimespanV2 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV2; // 10 * NUM_ALGOS * 90
+        consensus.nMaxAdjustDown = 16; // 16% adjustment down
+        consensus.nMaxAdjustUp = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
+        consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
+        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
+        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
+        consensus.nMinActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nMinActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.vDiffChangeHeight =  2604;
+        consensus.v2DiffChangeHeight =  2604;
+        consensus.v3DiffChangeHeight = 2606;
+        consensus.AlgoChangeHeight =  2607;
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
+        consensus.nWork =  2608;
+        consensus.nunuHeight =  3000;
 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = false;
-        consensus.nPowKGWHeight = 4001; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
-        consensus.nPowDGWHeight = 4001;
+        consensus.nPowKGWHeight = 5; // nPowKGWHeight >= nPowDGWHeight means "no KGW"
+        consensus.nPowDGWHeight = 5;
         consensus.nRuleChangeActivationThreshold = 1512; // 75% for testchains
         consensus.nMinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -761,16 +808,16 @@ public:
 
 
         // The best chain should have at least this much work.
-        consensus.nMinimumChainWork = uint256S("0x000000000000000000000000000000000000000000000000000000000000000");
+        consensus.nMinimumChainWork = uint256S("");
 
         // By default assume that the signatures in ancestors of this block are valid.
-        consensus.defaultAssumeValid = uint256S("0x000000000000000000000000000000000000000000000000000000000000000");
+        consensus.defaultAssumeValid = uint256S("");
 
         pchMessageStart[0] = 0xe2;
         pchMessageStart[1] = 0xca;
-        pchMessageStart[2] = 0xff;
+        pchMessageStart[2] = 0x44;
         pchMessageStart[3] = 0xce;
-        nDefaultPort = 19799;
+        nDefaultPort = 50505;
         nPruneAfterHeight = 1000;
 
         genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);
@@ -864,19 +911,44 @@ public:
         consensus.BIP34Hash = uint256();
         consensus.BIP65Height = 1351; // BIP65 activated on regtest (Used in rpc activation tests)
         consensus.BIP66Height = 1251; // BIP66 activated on regtest (Used in rpc activation tests)
-        consensus.DIP0001Height = 2000;
-        consensus.DIP0003Height = 432;
-        consensus.DIP0003EnforcementHeight = 500;
+        consensus.DIP0001Height = 1500;
+        consensus.DIP0003Height = 1800;
+        consensus.DIP0003EnforcementHeight = 1850;
         consensus.DIP0003EnforcementHash = uint256();
+        consensus.DIP0008Height = 2000;
+        consensus.nCollateralNewHeight = 2000;
         consensus.powLimit = uint256S("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"); // ~uint256(0) >> 1
-        consensus.nPowTargetTimespan = 24 * 60 * 60; // Xazab: 1 day
-        consensus.nPowTargetSpacing = 2.5 * 60; // Xazab: 2.5 minutes
-        consensus.nunuHeight =  370000;
+        consensus.nPowTargetTimespan = 60; // Xazab: 1 minutes
+        consensus.nPowTargetSpacing = 60; // Xazab: 1 minutes
+
+        consensus.nAveragingInterval = 10; // 10 blocks
+        consensus.multiAlgoTargetSpacing = 90 * 3; // NUM_ALGOS * 90 seconds
+        consensus.multiAlgoTargetSpacingV2 = 90 * 4; // add yespower
+        consensus.nAveragingTargetTimespan = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacing; // 10 * NUM_ALGOS * 90
+        consensus.nAveragingTargetTimespanV2 = consensus.nAveragingInterval * consensus.multiAlgoTargetSpacingV2; // 10 * NUM_ALGOS * 90
+        consensus.nMaxAdjustDown = 16; // 16% adjustment down
+        consensus.nMaxAdjustUp = 8; // 8% adjustment up
+        consensus.nMaxAdjustDownV2 = 12; // 12% adjustment down -- lower a little slower
+        consensus.nMaxAdjustUpV2 = 10; // 10% adjustment up  -- rise a little faster
+        consensus.nMinActualTimespan = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUp) / 100;
+        consensus.nMaxActualTimespan = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDown) / 100;
+        consensus.nMinActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV2 = consensus.nAveragingTargetTimespan * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.nMinActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 - consensus.nMaxAdjustUpV2) / 100;
+        consensus.nMaxActualTimespanV3 = consensus.nAveragingTargetTimespanV2 * (100 + consensus.nMaxAdjustDownV2) / 100;
+        consensus.vDiffChangeHeight =  2604;
+        consensus.v2DiffChangeHeight =  2604;
+        consensus.v3DiffChangeHeight = 2606;
+        consensus.AlgoChangeHeight =  2607;
+        consensus.nLocalTargetAdjustment = 4; //target adjustment per algo
+        consensus.nLocalDifficultyAdjustment = 4; //difficulty adjustment per algo
+        consensus.nWork =  2608;
+        consensus.nunuHeight =  3000;
 
         consensus.fPowAllowMinDifficultyBlocks = true;
         consensus.fPowNoRetargeting = true;
-        consensus.nPowKGWHeight = 15200; // same as mainnet
-        consensus.nPowDGWHeight = 34140; // same as mainnet
+        consensus.nPowKGWHeight = 4; // same as mainnet
+        consensus.nPowDGWHeight = 5; // same as mainnet
         consensus.nRuleChangeActivationThreshold = 108; // 75% for testchains
         consensus.nMinerConfirmationWindow = 144; // Faster than normal for regtest (144 instead of 2016)
         consensus.vDeployments[Consensus::DEPLOYMENT_TESTDUMMY].bit = 28;
@@ -899,8 +971,8 @@ public:
         consensus.vDeployments[Consensus::DEPLOYMENT_DIP0008].nTimeout = 999999999999ULL;
         // Deployment of Block Reward Reallocation
         consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].bit = 5;
-        consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].nStartTime = 1601510400; // Oct 1st, 2020
-        consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].nTimeout = 1633046400; // Oct 1st, 2021
+        consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].nThresholdStart = 3226; // 80% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_REALLOC].nThresholdMin = 2420; // 60% of 4032
@@ -908,8 +980,8 @@ public:
 
         // Deployment of v17 Hard Fork
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].bit = 6;
-        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nStartTime = 1612137600; // February 1st, 2021
-        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nTimeout = 1643673600; // February 1st, 2022
+        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nStartTime = 0;
+        consensus.vDeployments[Consensus::DEPLOYMENT_V17].nTimeout = 999999999999ULL;
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nWindowSize = 4032;
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nThresholdStart = 3226; // 80% of 4032
         consensus.vDeployments[Consensus::DEPLOYMENT_V17].nThresholdMin = 2420; // 60% of 4032
@@ -923,9 +995,9 @@ public:
 
         pchMessageStart[0] = 0xfc;
         pchMessageStart[1] = 0xc1;
-        pchMessageStart[2] = 0xb7;
+        pchMessageStart[2] = 0x44;
         pchMessageStart[3] = 0xdc;
-        nDefaultPort = 19899;
+        nDefaultPort = 50506;
         nPruneAfterHeight = 1000;
 
         genesis = CreateGenesisBlock(1417713337, 1096447, 0x207fffff, 1, 50 * COIN);
