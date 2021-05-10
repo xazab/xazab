@@ -51,7 +51,7 @@ XAZAB SPECIFICATION
 
 - Name: Xazab
 - Ticker: XAZAB
-- Algorithm: X11
+- Algorithm: X11 YESPOWER SHA256D LYRA2 SCRYPT 
 - Supply: 21 million
 - P2P: 30303
 - RPC: 31313
@@ -100,38 +100,50 @@ Period 18: 59.9% X 4 =  2.396 XAZAB
 
 Period 19: 60%    X 4 =  2.40  XAZAB
 
-## Download The Xazab Wallet
-
-```shell
-fe4cbb56bd3732a1532a2bfab8145fc216a4d824b866221c2d743f40a26b2c8d  xazabcore-0.17.0-win64-setup.exe
-23940180065160477cfe88504aedfa4d3531b70faa50bce0c09cf75ba1d7f669  xazabcore-0.17.0-win64.zip
-f6dea5b6207057eeb17ef2cc2c841d8ed04fd8f3512fadcab19eefe63bd77e60  xazabcore-0.17.0.1-x86_64-pc-linux-gnu.tar.gz
-aa25dfe3128987a87ecac0d21accd5ba41b17029e5faab97c9de8d98bfd2719b  xazabcore-0.17.0.1-x86_64-linux-gnu.tar.gz
-a1d81e8a9dd38701b4cf7aa3a44e9e5b227382fbb7cb1a5a9edb96d18661d10c  xazabcore-0.17.1-i686-pc-linux-gnu.tar.gz
-4f1e3b2d5b51fd63fb97baa575162f0d4fe5e096b8b08b585c8bd141e0d4941a  xazabcore-0.17.1-win32-setup.exe
-e93f16cc5b3a1fce13e889ae9c8af1e5e18233dfd81bcd6b638faa4b6d801a08  xazabcore-0.17.0.1-win32.zip
-ad3efcd29dea9390d22950495a83a49aad63cebd300697df02a1b1cdc7374a8e  xazabcore-0.17.0.1-arm-linux-gnueabihf.tar.gz
-757be5b96e714009e3448cdb6e446e3425fbac273056b944e1372fe41099d12c  xazabcore-0.17.0.1-aarch64-linux-gnu.tar.gz
-ffa22236a0dbe30e601acdc95b36f1353dbaa6c9dd095b9ef7900ad681d21644  xazabcore-0.17.0.1-osx.dmg
-dbcc49efc095f4461882acf8dc78dd0e20b27933eb32c1b875fabb64000364fc  xazabcore-0.17.0.1-osx64.tar.gz
+## Building XAZAB on Linux
 ```
-[Android Mobile Wallet](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazab-wallet-prod-release.apk)
+sudo add-apt-repository ppa:bitcoin/bitcoin
+sudo apt update
+sudo apt upgrade
 
-[64-bit windows Installer](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0-win64-setup.exe)
+sudo apt install build-essential libtool autotools-dev automake pkg-config libssl-dev libevent-dev bsdmainutils git libdb4.8-dev libdb4.8++-dev curl libgmp3-dev
+sudo apt install libboost-system-dev libboost-filesystem-dev libboost-chrono-dev libboost-program-options-dev libboost-test-dev libboost-thread-dev libzmq3-dev
+```
 
-[64-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0-win64.zip)
+Optional QT
+```
+sudo apt install libqt5gui5 libqt5core5a libqt5dbus5 qttools5-dev qttools5-dev-tools libprotobuf-dev protobuf-compiler
+```
 
-[32-bit windows binaries Installer](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0-win32-setup.exe)
+```
+wget https://github.com/dashpay/bls-signatures/archive/v20181101.zip 
 
-[32-bit windows binaries zip file](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-win32.zip)
+unzip v20181101.zip 
 
-[64-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-x86_64-linux-gnu.tar.gz)
+cd bls-signatures-20181101
 
-[32-bit linux binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-i686-pc-linux-gnu.tar.gz)
+mkdir build
 
-[Armv7 binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-arm-linux-gnueabihf.tar.gz)
+cd build
 
-[Armv8 binaries](https://github.com/xazab/xazab/releases/download/0.17.0.1/xazabcore-0.17.0.1-aarch64-linux-gnu.tar.gz)
+cmake ..
+
+cmake --build .
+
+sudo make install 
+```
+
+Download Xazab
+
+```
+git clone https://github.com/xazab/xazab
+
+cd xazab
+
+./autogen.sh
+./configure
+make
+```
 
 
 ## Links
@@ -140,11 +152,12 @@ dbcc49efc095f4461882acf8dc78dd0e20b27933eb32c1b875fabb64000364fc  xazabcore-0.17
 
 - [Discord](https://discord.gg/U6uBeAV)
 
-- [Telegram](https://t.me/joinchat/TYwTVRgmXnTDypLAQkn-RQ)
+- [Telegram](https://t.me/xazabcoin)
 
 ### Pool
 
-- [https://www.0769.it/](https://www.0769.it)
+- [https://https://pool.rplant.xyz/](https://pool.rplant.xyz/)
+
 
 ### Explorer 
 
