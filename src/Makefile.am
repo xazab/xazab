@@ -406,6 +406,8 @@ crypto_libxazab_crypto_base_a_SOURCES = \
   crypto/algos/yespower/yespower-opt.c \
   crypto/algos/yespower/yespower.c \
   crypto/aes_helper.c \
+  crypto/sph_sha2.c \
+  crypto/sph_sha512.c \
   crypto/ripemd160.h \
   crypto/sha1.cpp \
   crypto/sha1.h \
@@ -443,6 +445,11 @@ crypto_libxazab_crypto_base_a_SOURCES += \
   crypto/shavite.c \
   crypto/simd.c \
   crypto/skein.c \
+  crypto/sph_hamsi.c \
+  crypto/sph_hamsi_helper.c \
+  crypto/sph_fugue.c \
+  crypto/sph_shabal.c \
+  crypto/sph_whirlpool.c \
   crypto/sph_blake.h \
   crypto/sph_bmw.h \
   crypto/sph_cubehash.h \
@@ -454,7 +461,53 @@ crypto_libxazab_crypto_base_a_SOURCES += \
   crypto/sph_shavite.h \
   crypto/sph_simd.h \
   crypto/sph_skein.h \
-  crypto/sph_types.h
+  crypto/sph_types.h \
+  crypto/sph_hamsi.h \
+  crypto/sph_fugue.h \
+  crypto/sph_shabal.h \
+  crypto/sph_whirlpool.h \
+  crypto/sph_sha2.h \
+  crypto/sph_types.h \
+  cryptonote/crypto/aesb.c \
+  cryptonote/crypto/c_blake256.c \
+  cryptonote/crypto/c_groestl.c \
+  cryptonote/crypto/c_jh.c \
+  cryptonote/crypto/c_keccak.c \
+  cryptonote/crypto/c_skein.c \
+  cryptonote/crypto/hash.c \
+  cryptonote/crypto/oaes_lib.c \
+  cryptonote/crypto/wild_keccak.cpp \
+  cryptonote/crypto/c_blake256.h \
+  cryptonote/crypto/c_groestl.h \
+  cryptonote/crypto/c_jh.h \
+  cryptonote/crypto/c_keccak.h \
+  cryptonote/crypto/crypto.h \
+  cryptonote/crypto/c_skein.h \
+  cryptonote/crypto/groestl_tables.h \
+  cryptonote/crypto/hash.h \
+  cryptonote/crypto/hash-ops.h \
+  cryptonote/crypto/int-util.h \
+  cryptonote/crypto/oaes_config.h \
+  cryptonote/crypto/oaes_lib.h \
+  cryptonote/crypto/skein_port.h \
+  cryptonote/crypto/variant2_int_sqrt.h \
+  cryptonote/crypto/wild_keccak.h \
+  cryptonote/cryptonight.c \
+  cryptonote/cryptonight_dark.c \
+  cryptonote/cryptonight_dark_lite.c \
+  cryptonote/cryptonight_fast.c \
+  cryptonote/cryptonight_lite.c \
+  cryptonote/cryptonight_soft_shell.c \
+  cryptonote/cryptonight_turtle.c \
+  cryptonote/cryptonight_turtle_lite.c \
+  cryptonote/cryptonight_dark.h  \
+  cryptonote/cryptonight_dark_lite.h \
+  cryptonote/cryptonight_fast.h \
+  cryptonote/cryptonight.h \
+  cryptonote/cryptonight_lite.h \
+  cryptonote/cryptonight_soft_shell.h \
+  cryptonote/cryptonight_turtle.h \
+  cryptonote/cryptonight_turtle_lite.h
 
 crypto_libxazab_crypto_shani_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 crypto_libxazab_crypto_shani_a_CPPFLAGS = $(AM_CPPFLAGS)
@@ -475,6 +528,8 @@ libxazab_consensus_a_SOURCES = \
   consensus/merkle.h \
   consensus/params.h \
   consensus/validation.h \
+  hash_selection.h \
+  hash_selection.cpp \
   hash.cpp \
   hash.h \
   prevector.h \
