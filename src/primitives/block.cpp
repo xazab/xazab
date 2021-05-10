@@ -62,7 +62,10 @@ uint256 CBlockHeader::GetPOWHash(int algo) const
             LYRA2(BEGIN(powHash), 32, BEGIN(nVersion), 80, BEGIN(nVersion), 80, 2, 330, 256);
             return powHash;
         }
-
+        case ALGO_GHOSTRIDER:
+        {
+            return HashGR(BEGIN(nVersion), END(nNonce), hashPrevBlock);
+        }
         case ALGO_X11:
         default:
             return GetX11Hash();

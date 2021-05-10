@@ -127,7 +127,11 @@ arith_uint256 GetBlockProof(const CBlockIndex& block)
 
     int CURRENT_ALGOS;
 
-    if (block.nHeight >= params.nWork)
+    if (block.nHeight >= params.nunuHeight)
+    {
+        CURRENT_ALGOS = NUM_ALGOSV4;
+    }
+    else if (block.nHeight >= params.nWork)
     {
         CURRENT_ALGOS = NUM_ALGOSV3;
     }

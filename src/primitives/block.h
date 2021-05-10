@@ -16,13 +16,14 @@ enum
     ALGO_SHA256D = 1,
     ALGO_LYRA2 = 2,
     ALGO_SCRYPT   = 3,
-    ALGO_YESPOWER = 4
+    ALGO_YESPOWER = 4,
+    ALGO_GHOSTRIDER = 5
 };
 
 const int NUM_ALGOS = 3;
 const int NUM_ALGOSV2 = 4;
 const int NUM_ALGOSV3 = 5;
-
+const int NUM_ALGOSV4 = 6;
 enum
 {
     // primary version
@@ -35,7 +36,7 @@ enum
     BLOCK_VERSION_SHA256D        = (1 << 9),
     BLOCK_VERSION_SCRYPT         = (4 << 9),
     BLOCK_VERSION_YESPOWER       = (6 << 9),
-
+    BLOCK_VERSION_GHOSTRIDER       = (8 << 9),
     /*
     BLOCK_VERSION_ALGO_BROKEN    = (10 << 11), //'101000000000000' 10 (broken bitmask)
     BLOCK_VERSION_ALGO           = (15 << 11), //'111100000000000' 15 (bitmask)
@@ -57,6 +58,8 @@ static inline int GetAlgoByName(std::string strAlgo){
 	    return ALGO_LYRA2;
     if (strAlgo == "yespower")
             return ALGO_YESPOWER;
+    if (strAlgo == "ghostrider")
+            return ALGO_GHOSTRIDER;
     return ALGO_X11;
 }
 
@@ -72,6 +75,8 @@ static inline std::string GetAlgoName(int algo)
             return std::string("lyra2");
         case ALGO_YESPOWER:
             return std::string("yespower");
+        case ALGO_GHOSTRIDER:
+            return std::string("ghostrider");
         case ALGO_X11:
             return std::string("x11");
     }
@@ -160,6 +165,8 @@ public:
                 return ALGO_X11;
             case BLOCK_VERSION_YESPOWER:
                 return ALGO_YESPOWER;
+            case BLOCK_VERSION_GHOSTRIDER:
+                return ALGO_GHOSTRIDER;
         }
 
         return ALGO_X11;

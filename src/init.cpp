@@ -637,7 +637,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-blockmintxfee=<amt>", strprintf(_("Set lowest fee rate (in %s/kB) for transactions to be included in block creation. (default: %s)"), CURRENCY_UNIT, FormatMoney(DEFAULT_BLOCK_MIN_TX_FEE)));
     if (showDebug)
         strUsage += HelpMessageOpt("-blockversion=<n>", "Override block version to test forking scenarios");
-        strUsage += HelpMessageOpt("-algo=<algo>", "Mining algorithms: sha256d, scrypt, x11, yespower,lyra2");
+        strUsage += HelpMessageOpt("-algo=<algo>", "Mining algorithms: sha256d, scrypt, x11, yespower,lyra2, ghostrider");
 
     strUsage += HelpMessageGroup(_("RPC server options:"));
     strUsage += HelpMessageOpt("-server", _("Accept command line and JSON-RPC commands"));
@@ -1718,6 +1718,8 @@ bool AppInitMain(boost::thread_group& threadGroup, CScheduler& scheduler)
         miningAlgo = ALGO_X11;
     else if (strAlgo == "yespower")
         miningAlgo = ALGO_YESPOWER;
+    else if (strAlgo == "ghostrider")
+        miningAlgo = ALGO_GHOSTRIDER;
     else if (strAlgo == "lyra2" || strAlgo == "lyra2z330")
         miningAlgo = ALGO_LYRA2;
     else

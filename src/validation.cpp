@@ -1788,6 +1788,11 @@ int32_t ComputeBlockVersion(const CBlockIndex* pindexPrev, const Consensus::Para
             nVersion |= BLOCK_VERSION_X11;
         else
             nVersion |= BLOCK_VERSION_LYRA2;
+        case ALGO_GHOSTRIDER:
+        if (pindexPrev->nHeight <  params.nunuHeight)
+            nVersion |= BLOCK_VERSION_X11;
+        else
+            nVersion |= BLOCK_VERSION_GHOSTRIDER;
         break;
         default:
         break;
@@ -3285,6 +3290,7 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
             case BLOCK_VERSION_LYRA2:
             case BLOCK_VERSION_SHA256D:
             case BLOCK_VERSION_YESPOWER:
+	    case BLOCK_VERSION_GHOSTRIDER:
                 break;
             default:
                 return state.DoS(50, false, REJECT_INVALID, "unknown-algo", false, "unknown proof of work algorithm");

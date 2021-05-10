@@ -180,8 +180,15 @@ unsigned int XazabWork(const CBlockIndex* pindexLast, const Consensus::Params& p
         {
             pindexFirst = pindexFirst->pprev;
         }
-    } else {
+       }
+    else if (pindexLast->nHeight < params.nunuHeight){
         for (int i = 0; pindexFirst && i < NUM_ALGOSV3 * params.nAveragingInterval; i++)
+        {
+            pindexFirst = pindexFirst->pprev;
+       		 }
+		}
+    else {
+        for (int i = 0; pindexFirst && i < NUM_ALGOSV4 * params.nAveragingInterval; i++)
         {
             pindexFirst = pindexFirst->pprev;
         }
@@ -214,9 +221,13 @@ unsigned int XazabWork(const CBlockIndex* pindexLast, const Consensus::Params& p
     int nAdjustments{0};
     if (pindexLast->nHeight < params.nWork) {
         nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOSV2 - 1 - pindexLast->nHeight;
-    } else {
+    } 
+    else if (pindexLast->nHeight < params.nunuHeight) {
         nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOSV3 - 1 - pindexLast->nHeight;
-    }
+        }
+   else {
+        nAdjustments = pindexPrevAlgo->nHeight + NUM_ALGOSV4 - 1 - pindexLast->nHeight;
+	}
 
     if (nAdjustments > 0)
     {
