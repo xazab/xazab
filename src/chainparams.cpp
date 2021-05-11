@@ -503,13 +503,13 @@ public:
         consensus.nBudgetPaymentsCycleBlocks = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
         consensus.nBudgetPaymentsWindowBlocks = 100;
         consensus.nSuperblockStartBlock = 0; // The block at which 12.1 goes live (end of final 12.0 budget cycle)
-        consensus.nSuperblockStartHash = uint256S("00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6");
+        consensus.nSuperblockStartHash = uint256S("00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c");
         consensus.nSuperblockCycle = 16616; // ~(60*24*30)/2.6, actual number of blocks per month is 200700 / 12 = 16725
         consensus.nGovernanceMinQuorum = 10;
         consensus.nGovernanceFilterElements = 20000;
         consensus.nMasternodeMinimumConfirmations = 15;
         consensus.BIP34Height = 0;
-        consensus.BIP34Hash = uint256S("00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6");
+        consensus.BIP34Hash = uint256S("00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c");
         consensus.BIP65Height = 0; // 00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6
         consensus.BIP66Height = 0; //  00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6
         consensus.DIP0001Height = 10;
@@ -672,7 +672,7 @@ public:
 
         checkpointData = (CCheckpointData) {
             {
-                {0, uint256S("0x00000ffd590b1485b3caadc19b22e6379c733355108f107a430458cdf3407ab6")},
+                {0, uint256S("0x00000bafbc94add76cb75e2ec92894837288a481e5c005f6563d91623bf8bc2c")},
             }
         };
 
