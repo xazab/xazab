@@ -2748,6 +2748,8 @@ void CWallet::AvailableCoins(std::vector<COutput> &vCoins, bool fOnlySafe, const
                  if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
                    masternode_collateral = 15000;
                found = pcoin->tx->vout[i].nValue == masternode_collateral*COIN;
+                 if (!found && chainActive.Height() >= Params().GetConsensus().nunuHeight)
+                  found = pcoin->tx->vout[i].nValue == 15000 * COIN;
                 } else if(nCoinType == CoinType::ONLY_PRIVATESEND_COLLATERAL) {
                     found = CPrivateSend::IsCollateralAmount(pcoin->tx->vout[i].nValue);
                 } else {
@@ -3347,6 +3349,13 @@ bool CWallet::SelectCoinsGroupedByAddresses(std::vector<CompactTallyItem>& vecTa
                 if (chainActive.Height() >= Params().GetConsensus().nCollateralNewHeight)
                     masternode_collateral = 15000;
                 if(fMasternodeMode && wtx.tx->vout[i].nValue == masternode_collateral*COIN) continue;
+
+                if(fMasternodeMode && chainActive.Height() >= Params().GetConsensus().nunuHeight && wtx.tx->vout[i].nValue == 15000 * COIN) continue;
+
+                if(fMasternodeMode && chainActive.Height() >= Params().GetConsensus().nunuHeight && wtx.tx->vout[i].nValue == 1000 * COIN)
+		{
+			return false;
+		}
                 // ignore outputs that are 10 times smaller then the smallest denomination
                 // otherwise they will just lead to higher fee / lower priority
                 if(wtx.tx->vout[i].nValue <= nSmallestDenom/10) continue;

@@ -682,6 +682,21 @@ bool CDeterministicMNManager::BuildNewListFromBlock(const CBlock& block, const C
             }
                 }
 
+          if (chainActive.Height() >= (Params().GetConsensus().nunuHeight))
+   	   {
+	      	  int masternode_collateral_v1 = 1000;
+	      	  int masternode_collateral_v2 = 15000;
+
+	        if(coin.out.nValue != masternode_collateral_v1 * COIN && coin.out.nValue != masternode_collateral_v2 * COIN) {
+	             return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral");
+	        }
+	    }
+	    else
+	    {
+	        if(coin.out.nValue != 15000 * COIN) {
+   	          return _state.DoS(100, false, REJECT_INVALID, "bad-protx-collateral");
+	        }
+             }
             auto replacedDmn = newList.GetMNByCollateral(dmn->collateralOutpoint);
             if (replacedDmn != nullptr) {
                 // This might only happen with a ProRegTx that refers an external collateral
